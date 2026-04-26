@@ -88,6 +88,7 @@ nav:
       - ポータル設定画面: administration/portal-config.md
       - スケジュールジョブ: administration/scheduled-jobs.md
       - 権限セット: administration/permission-sets.md
+      - GitHub Actions CI/CD: administration/github-actions.md
   - リファレンス:
       - 差し込みフィールド一覧: reference/placeholders.md
       - 変更履歴: reference/changelog.md
