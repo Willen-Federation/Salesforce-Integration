@@ -1,0 +1,125 @@
+<template>
+    <lightning-card title="フォームビルダー" icon-name="utility:builder">
+        <div class="slds-m-around_medium">
+
+            <template if:true={errorMessage}>
+                <div class="slds-notify slds-notify_toast slds-theme_error slds-m-bottom_small" role="alert">
+                    <p>{errorMessage}</p>
+                </div>
+            </template>
+
+            <!-- Template List -->
+            <template if:false={selectedTemplateId}>
+                <div class="slds-grid slds-m-bottom_medium">
+                    <h2 class="slds-col slds-text-heading_small">フォームテンプレート一覧</h2>
+                    <lightning-button variant="brand" label="新規作成" icon-name="utility:add" onclick={handleNewTemplate} class="slds-col_bump-left"></lightning-button>
+                </div>
+
+                <template if:true={isLoading}><lightning-spinner alternative-text="読み込み中"></lightning-spinner></template>
+
+                <template for:each={templates} for:item="t">
+                    <div key={t.Id} class="slds-box slds-m-bottom_x-small slds-grid slds-grid_vertical-align-center">
+                        <div class="slds-col">
+                            <p class="slds-text-heading_small">{t.Name}
+                                <lightning-badge label={t.FormType__c} class="slds-m-left_x-small"></lightning-badge>
+                                <template if:true={t.IsActive__c}>
+                                    <lightning-badge label="受付中" class="slds-m-left_x-small" style="--sds-c-badge-color-background: #4bca81;"></lightning-badge>
+                                </template>
+                            </p>
+                            <p class="slds-text-body_small slds-text-color_weak">
+                                回答数: {t.TotalResponses__c}
+                                <template if:true={t.GeneralMeeting__r}> ／ 総会: {t.GeneralMeeting__r.Name}</template>
+                            </p>
+                        </div>
+                        <div class="slds-col_bump-left slds-grid">
+                            <lightning-button label="編集" data-id={t.Id} onclick={handleSelectTemplate}></lightning-button>
+                            <lightning-button label="複製" data-id={t.Id} onclick={handleDuplicate} class="slds-m-left_x-small"></lightning-button>
+                            <lightning-button
+                                label={t.toggleLabel}
+                                data-id={t.Id}
+                                data-active={t.IsActive__c}
+                                onclick={handleToggleActive}
+                                class="slds-m-left_x-small">
+                            </lightning-button>
+                        </div>
+                    </div>
+                </template>
+            </template>
+
+            <!-- Template Editor -->
+            <template if:true={selectedTemplateId}>
+                <div class="slds-grid slds-m-bottom_medium">
+                    <lightning-button label="← テンプレート一覧に戻る" onclick={handleBack} variant="base"></lightning-button>
+                    <lightning-button variant="brand" label="保存" onclick={handleSave} class="slds-col_bump-left" disabled={isSaving}></lightning-button>
+                </div>
+
+                <!-- Basic Info -->
+                <lightning-accordion allow-multiple-sections-open active-section-name="basic,fields">
+                    <lightning-accordion-section name="basic" label="基本設定">
+                        <div class="slds-grid slds-wrap">
+                            <div class="slds-col slds-size_1-of-2 slds-p-right_small">
+                                <lightning-input label="フォーム名 *" value={form.name} onchange={handleFormChange} data-field="name" required></lightning-input>
+                            </div>
+                            <div class="slds-col slds-size_1-of-2">
+                                <lightning-combobox label="フォーム種別" value={form.formType} options={formTypeOptions} onchange={handleFormChange} data-field="formType"></lightning-combobox>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1 slds-m-top_small">
+                                <lightning-textarea label="説明・案内文" value={form.description} onchange={handleFormChange} data-field="description" rows="4"></lightning-textarea>
+                            </div>
+                            <div class="slds-col slds-size_1-of-2 slds-p-right_small slds-m-top_small">
+                                <lightning-input type="datetime-local" label="回答期限" value={form.responseDeadline} onchange={handleFormChange} data-field="responseDeadline"></lightning-input>
+                            </div>
+                            <div class="slds-col slds-size_1-of-2 slds-m-top_small">
+                                <lightning-input type="checkbox" label="認証必須" checked={form.requiresAuth} onchange={handleCheckChange} data-field="requiresAuth"></lightning-input>
+                                <lightning-input type="checkbox" label="レコードに自動保存" checked={form.saveToRecord} onchange={handleCheckChange} data-field="saveToRecord"></lightning-input>
+                                <lightning-input type="checkbox" label="確認メール送信" checked={form.sendConfirmation} onchange={handleCheckChange} data-field="sendConfirmation"></lightning-input>
+                            </div>
+                            <template if:true={form.sendConfirmation}>
+                                <div class="slds-col slds-size_1-of-1 slds-m-top_small">
+                                    <lightning-textarea label="確認メールテンプレート（空欄=デフォルト）" value={form.confirmationTemplate} onchange={handleFormChange} data-field="confirmationTemplate" rows="5" placeholder="例: {!Member.Name} 様&#10;回答を受け付けました。"></lightning-textarea>
+                                </div>
+                            </template>
+                        </div>
+                    </lightning-accordion-section>
+
+                    <!-- Field Builder -->
+                    <lightning-accordion-section name="fields" label="フィールド定義">
+                        <div class="slds-m-bottom_small slds-grid">
+                            <p class="slds-col slds-text-body_small slds-text-color_weak">ドラッグ＆ドロップで並べ替えができます（デプロイ後）</p>
+                            <lightning-button label="フィールドを追加" icon-name="utility:add" onclick={handleAddField} class="slds-col_bump-left"></lightning-button>
+                        </div>
+
+                        <template for:each={fields} for:item="field" for:index="idx">
+                            <div key={field._key} class="slds-box slds-m-bottom_x-small">
+                                <div class="slds-grid slds-wrap slds-grid_vertical-align-end">
+                                    <div class="slds-col slds-size_3-of-12 slds-p-right_x-small">
+                                        <lightning-input label="ラベル" value={field.label} data-idx={idx} data-prop="label" onchange={handleFieldChange}></lightning-input>
+                                    </div>
+                                    <div class="slds-col slds-size_2-of-12 slds-p-right_x-small">
+                                        <lightning-combobox label="種別" value={field.fieldType} options={fieldTypeOptions} data-idx={idx} data-prop="fieldType" onchange={handleFieldChange}></lightning-combobox>
+                                    </div>
+                                    <div class="slds-col slds-size_2-of-12 slds-p-right_x-small">
+                                        <lightning-input label="プレースホルダー" value={field.placeholder} data-idx={idx} data-prop="placeholder" onchange={handleFieldChange}></lightning-input>
+                                    </div>
+                                    <div class="slds-col slds-size_2-of-12 slds-p-right_x-small">
+                                        <lightning-input label="ヘルプ" value={field.helpText} data-idx={idx} data-prop="helpText" onchange={handleFieldChange}></lightning-input>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-12 slds-p-right_x-small">
+                                        <lightning-input type="checkbox" label="必須" checked={field.isRequired} data-idx={idx} data-prop="isRequired" onchange={handleFieldCheckChange}></lightning-input>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-12">
+                                        <lightning-button-icon icon-name="utility:delete" variant="destructive" data-idx={idx} onclick={handleRemoveField} alternative-text="削除"></lightning-button-icon>
+                                    </div>
+                                </div>
+                                <template if:true={field.showOptions}>
+                                    <lightning-textarea label="選択肢（1行1つ）" value={field.picklistOptions} data-idx={idx} data-prop="picklistOptions" onchange={handleFieldChange} rows="4" class="slds-m-top_x-small"></lightning-textarea>
+                                </template>
+                            </div>
+                        </template>
+                    </lightning-accordion-section>
+                </lightning-accordion>
+            </template>
+
+        </div>
+    </lightning-card>
+</template>

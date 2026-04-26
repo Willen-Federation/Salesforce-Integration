@@ -1,0 +1,71 @@
+<apex:page controller="DocumentGenerationController" renderAs="pdf" applyBodyTag="false" showHeader="false" sidebar="false" contentType="application/pdf">
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<style>
+  body { font-family: "Hiragino Kaku Gothic Pro", "Meiryo", sans-serif; font-size: 11pt; margin: 0; padding: 0; }
+  .page { width: 190mm; margin: 15mm auto; }
+  .receipt-header { text-align: center; border-bottom: 3px double #333; padding-bottom: 8px; margin-bottom: 16px; }
+  .receipt-header h1 { font-size: 20pt; letter-spacing: 8px; margin: 0 0 4px; }
+  .receipt-number { text-align: right; font-size: 9pt; color: #555; }
+  .payee-section { margin: 16px 0; }
+  .payee-name { font-size: 14pt; border-bottom: 1px solid #333; padding-bottom: 4px; margin-bottom: 4px; }
+  .amount-box { border: 2px solid #333; padding: 10px 20px; text-align: center; margin: 20px 0; }
+  .amount-label { font-size: 9pt; color: #555; }
+  .amount-value { font-size: 22pt; font-weight: bold; letter-spacing: 2px; }
+  .details-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  .details-table th, .details-table td { border: 1px solid #ccc; padding: 6px 10px; font-size: 10pt; }
+  .details-table th { background: #f0f0f0; width: 35%; text-align: left; }
+  .issuer-section { margin-top: 30px; text-align: right; }
+  .issuer-name { font-size: 13pt; font-weight: bold; }
+  .stamp-area { display: inline-block; width: 60px; height: 60px; border: 2px solid #c00; border-radius: 50%; text-align: center; line-height: 60px; color: #c00; font-size: 9pt; margin-left: 10px; vertical-align: middle; }
+  .footer-note { font-size: 8pt; color: #777; margin-top: 20px; border-top: 1px solid #ccc; padding-top: 8px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="receipt-header">
+    <h1>領 収 書</h1>
+    <p>No. <apex:outputText value="{!payment.ReceiptNumber__c}"/></p>
+  </div>
+
+  <div class="receipt-number">
+    発行日: <apex:outputText value="{!issuedDateStr}"/>
+  </div>
+
+  <div class="payee-section">
+    <div class="payee-name">
+      <apex:outputText value="{!payment.Member__r.Organization__c}"/>&nbsp;
+      <apex:outputText value="{!payment.Member__r.LastName__c}"/>
+      <apex:outputText value="{!payment.Member__r.FirstName__c}"/> 様
+    </div>
+    <p style="font-size:9pt; color:#555;">上記の金額を領収いたしました。</p>
+  </div>
+
+  <div class="amount-box">
+    <div class="amount-label">金額</div>
+    <div class="amount-value"><apex:outputText value="{!formattedPaymentAmount}"/></div>
+  </div>
+
+  <table class="details-table">
+    <tr><th>支払い種別</th><td><apex:outputText value="{!payment.PaymentType__c}"/></td></tr>
+    <tr><th>摘要</th>      <td><apex:outputText value="{!payment.Description__c}"/></td></tr>
+    <tr><th>支払日</th>    <td><apex:outputText value="{!payment.PaymentDate__c}"/></td></tr>
+    <tr><th>支払方法</th>  <td><apex:outputText value="{!payment.PaymentMethod__c}"/></td></tr>
+    <tr><th>支払い番号</th><td><apex:outputText value="{!payment.Name}"/></td></tr>
+  </table>
+
+  <div class="issuer-section">
+    <p class="issuer-name"><apex:outputText value="{!organizationName}"/></p>
+    <span class="stamp-area">印</span>
+  </div>
+
+  <div class="footer-note">
+    ※ この領収書はシステムにより自動発行されたものです。再発行はポータルよりお申し込みください。
+  </div>
+
+</div>
+</body>
+</html>
+</apex:page>

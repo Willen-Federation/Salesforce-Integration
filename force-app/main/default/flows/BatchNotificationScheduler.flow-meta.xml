@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>59.0</apiVersion>
+    <label>バッチ通知スケジューラー</label>
+    <description>送信予約済みのバッチ通知を毎時チェックして送信するスケジュールフロー</description>
+    <interviewLabel>バッチ通知スケジューラー {!$Flow.CurrentDateTime}</interviewLabel>
+    <status>Active</status>
+    <processType>AutoLaunchedFlow</processType>
+    <triggerType>Scheduled</triggerType>
+
+    <schedules>
+        <frequency>Hourly</frequency>
+        <startDate>2024-01-01</startDate>
+        <startTime>00:00:00.000Z</startTime>
+    </schedules>
+
+    <recordLookups>
+        <name>GetScheduledNotifications</name>
+        <label>送信予約済み通知を取得</label>
+        <locationX>176</locationX>
+        <locationY>134</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector><targetReference>SendBatchAction</targetReference></connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>NotificationStatus__c</field>
+            <operator>EqualTo</operator>
+            <value><stringValue>送信予約済み</stringValue></value>
+        </filters>
+        <object>BatchNotification__c</object>
+        <outputReference>scheduledNotification</outputReference>
+        <queriedFields>Id</queriedFields>
+        <queriedFields>NotificationStatus__c</queriedFields>
+        <queriedFields>ScheduledDate__c</queriedFields>
+    </recordLookups>
+
+    <variables>
+        <name>scheduledNotification</name>
+        <dataType>SObject</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>BatchNotification__c</objectType>
+    </variables>
+
+    <actionCalls>
+        <name>SendBatchAction</name>
+        <label>バッチ送信実行</label>
+        <locationX>176</locationX>
+        <locationY>278</locationY>
+        <actionName>BatchNotificationBatch</actionName>
+        <actionType>apex</actionType>
+        <inputParameters>
+            <name>notificationId</name>
+            <value><elementReference>scheduledNotification.Id</elementReference></value>
+        </inputParameters>
+    </actionCalls>
+
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <connector><targetReference>GetScheduledNotifications</targetReference></connector>
+    </start>
+</Flow>

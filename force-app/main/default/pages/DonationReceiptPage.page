@@ -1,0 +1,77 @@
+<apex:page controller="DocumentGenerationController" renderAs="pdf" applyBodyTag="false" showHeader="false" sidebar="false" contentType="application/pdf">
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<style>
+  body { font-family: "Hiragino Kaku Gothic Pro", "Meiryo", sans-serif; font-size: 11pt; margin: 0; padding: 0; }
+  .page { width: 190mm; margin: 15mm auto; }
+  .receipt-header { text-align: center; border-bottom: 3px double #1a5276; padding-bottom: 8px; margin-bottom: 16px; }
+  .receipt-header h1 { font-size: 18pt; letter-spacing: 4px; margin: 0 0 4px; color: #1a5276; }
+  .receipt-number { text-align: right; font-size: 9pt; color: #555; }
+  .donor-section { margin: 16px 0; }
+  .donor-name { font-size: 14pt; border-bottom: 1px solid #1a5276; padding-bottom: 4px; }
+  .amount-box { border: 2px solid #1a5276; padding: 10px 20px; text-align: center; margin: 20px 0; background: #eaf2ff; }
+  .amount-label { font-size: 9pt; color: #555; }
+  .amount-value { font-size: 22pt; font-weight: bold; color: #1a5276; }
+  .details-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  .details-table th, .details-table td { border: 1px solid #ccc; padding: 6px 10px; font-size: 10pt; }
+  .details-table th { background: #eaf2ff; width: 35%; text-align: left; }
+  .tax-note { background: #fff9e6; border: 1px solid #f0c040; padding: 8px 12px; font-size: 9pt; margin: 12px 0; }
+  .issuer-section { margin-top: 30px; text-align: right; }
+  .issuer-name { font-size: 13pt; font-weight: bold; }
+  .stamp-area { display: inline-block; width: 60px; height: 60px; border: 2px solid #1a5276; border-radius: 50%; text-align: center; line-height: 60px; color: #1a5276; font-size: 9pt; margin-left: 10px; vertical-align: middle; }
+  .footer-note { font-size: 8pt; color: #777; margin-top: 20px; border-top: 1px solid #ccc; padding-top: 8px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="receipt-header">
+    <h1>寄 付 金 領 収 書</h1>
+    <p>No. <apex:outputText value="{!donation.ReceiptNumber__c}"/></p>
+  </div>
+
+  <div class="receipt-number">
+    発行日: <apex:outputText value="{!issuedDateStr}"/>
+  </div>
+
+  <div class="donor-section">
+    <div class="donor-name">
+      <apex:outputField value="{!donation.IsAnonymous__c}"/>
+      <apex:outputText rendered="{!!donation.IsAnonymous__c}" value="{!donation.DonorName__c}"/> 様
+      <apex:outputText rendered="{!donation.IsAnonymous__c}" value="匿名 様"/>
+    </div>
+    <p style="font-size:9pt; color:#555;">上記の方より寄付金をご寄付いただきましたことを証明いたします。</p>
+  </div>
+
+  <div class="amount-box">
+    <div class="amount-label">寄付金額</div>
+    <div class="amount-value"><apex:outputText value="{!formattedDonationAmount}"/></div>
+  </div>
+
+  <table class="details-table">
+    <tr><th>寄付番号</th><td><apex:outputText value="{!donation.Name}"/></td></tr>
+    <tr><th>寄付用途</th><td><apex:outputText value="{!donation.Purpose__c}"/></td></tr>
+    <tr><th>寄付日</th>  <td><apex:outputText value="{!donation.DonationDate__c}"/></td></tr>
+  </table>
+
+  <apex:outputPanel rendered="{!donation.TaxDeductionCertRequired__c}">
+    <div class="tax-note">
+      ★ この領収書は所得税・住民税の寄付金控除の申告にご使用いただけます。
+      確定申告の際は本書を添付してください。
+    </div>
+  </apex:outputPanel>
+
+  <div class="issuer-section">
+    <p class="issuer-name"><apex:outputText value="{!organizationName}"/></p>
+    <span class="stamp-area">印</span>
+  </div>
+
+  <div class="footer-note">
+    ※ この領収書はシステムにより自動発行されたものです。内容に相違がある場合はお問い合わせください。
+  </div>
+
+</div>
+</body>
+</html>
+</apex:page>

@@ -1,0 +1,33 @@
+<template>
+    <lightning-card title="活動登録" icon-name="standard:task">
+        <div class="slds-card__body slds-card__body_inner">
+            <template if:true={isSubmitted}>
+                <div class="slds-notify slds-notify_toast slds-theme_success" role="status">
+                    <p>活動を登録しました。（活動番号: {submittedName}）</p>
+                </div>
+            </template>
+            <template if:false={isSubmitted}>
+                <div class="slds-form slds-form_stacked">
+                    <lightning-input label="活動タイトル" value={title} onchange={handle} data-f="title" required></lightning-input>
+                    <lightning-combobox label="活動種別" value={activityType} options={typeOptions} onchange={handleCombo} data-f="activityType" required></lightning-combobox>
+                    <lightning-input type="date" label="活動日" value={activityDate} onchange={handle} data-f="activityDate" required></lightning-input>
+                    <lightning-input label="場所" value={location} onchange={handle} data-f="location"></lightning-input>
+                    <lightning-input type="number" label="活動時間（時間）" value={hours} onchange={handle} data-f="hours" step="0.5" min="0"></lightning-input>
+                    <lightning-textarea label="活動内容詳細" value={description} onchange={handle} data-f="description" max-length="5000"></lightning-textarea>
+                    <template if:true={hasError}>
+                        <div class="slds-notify slds-notify_toast slds-theme_error"><p>{errorMessage}</p></div>
+                    </template>
+                    <div class="slds-m-top_medium">
+                        <lightning-button label="登録する" variant="brand" onclick={handleSubmit} disabled={isSubmitting}></lightning-button>
+                    </div>
+                </div>
+            </template>
+
+            <!-- 活動履歴 -->
+            <div class="slds-m-top_large">
+                <h3 class="slds-text-heading_small slds-m-bottom_small">活動履歴</h3>
+                <lightning-datatable key-field="Id" data={activities} columns={columns} hide-checkbox-column></lightning-datatable>
+            </div>
+        </div>
+    </lightning-card>
+</template>

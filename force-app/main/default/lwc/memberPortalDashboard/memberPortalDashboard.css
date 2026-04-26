@@ -1,0 +1,23 @@
+.portal-dashboard {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.status-card {
+    border-radius: 8px;
+    transition: box-shadow 0.2s;
+}
+
+.status-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.notification-item {
+    border-left: 4px solid #0070d2;
+    background: #f4f6f9;
+}
+
+lightning-button {
+    width: 100%;
+}

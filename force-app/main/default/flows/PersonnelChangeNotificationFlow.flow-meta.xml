@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>59.0</apiVersion>
+    <label>人事異動通知フロー</label>
+    <description>人事異動が承認されたときにSlack・メール通知を送信するレコードトリガーフロー</description>
+    <interviewLabel>人事異動通知フロー {!$Flow.CurrentDateTime}</interviewLabel>
+    <status>Active</status>
+    <processType>AutoLaunchedFlow</processType>
+    <triggerType>RecordAfterSave</triggerType>
+    <object>PersonnelChange__c</object>
+    <recordTriggerType>CreateAndUpdate</recordTriggerType>
+    <triggerOrder>1</triggerOrder>
+
+    <decisions>
+        <name>IsApprovedDecision</name>
+        <label>承認済みかチェック</label>
+        <locationX>176</locationX>
+        <locationY>134</locationY>
+        <defaultConnectorLabel>承認済みでない</defaultConnectorLabel>
+        <rules>
+            <name>IsApproved</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.ApprovalStatus__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue><stringValue>承認済み</stringValue></rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record.NotifyEmail__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue><booleanValue>true</booleanValue></rightValue>
+            </conditions>
+            <connector><targetReference>SendEmailAction</targetReference></connector>
+            <label>承認済みかつ通知ON</label>
+        </rules>
+    </decisions>
+
+    <actionCalls>
+        <name>SendEmailAction</name>
+        <label>人事異動メール通知</label>
+        <locationX>176</locationX>
+        <locationY>278</locationY>
+        <actionName>EmailNotificationService.sendPersonnelChangeNotification</actionName>
+        <actionType>apex</actionType>
+        <inputParameters>
+            <name>personnelChangeId</name>
+            <value><elementReference>$Record.Id</elementReference></value>
+        </inputParameters>
+    </actionCalls>
+
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <connector><targetReference>IsApprovedDecision</targetReference></connector>
+    </start>
+</Flow>

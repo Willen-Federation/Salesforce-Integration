@@ -1,0 +1,9 @@
+.sfdx/
+.sf/
+node_modules/
+.DS_Store
+*.log
+
+# MkDocs
+site/
+.venv-docs/

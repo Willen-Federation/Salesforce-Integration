@@ -1,0 +1,186 @@
+<template>
+    <div class="slds-container_large slds-container_center slds-p-around_medium">
+
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="読み込み中" size="medium"></lightning-spinner>
+        </template>
+
+        <!-- Meeting List (admin) -->
+        <template if:true={isAdmin}>
+            <template if:false={selectedMeeting}>
+                <lightning-card title="総会管理" icon-name="utility:groups">
+                    <div class="slds-m-around_medium">
+                        <lightning-button variant="brand" label="新規総会を作成" icon-name="utility:add" onclick={handleCreateMeeting} class="slds-m-bottom_medium"></lightning-button>
+                        <template for:each={meetings} for:item="m">
+                            <div key={m.Id} class="slds-box slds-m-bottom_small slds-grid slds-grid_vertical-align-center">
+                                <div class="slds-col">
+                                    <p class="slds-text-heading_small">{m.Name}</p>
+                                    <p class="slds-text-body_small slds-text-color_weak">{m.formattedDate} ／ {m.MeetingStatus__c}</p>
+                                    <p class="slds-text-body_small">
+                                        出席: {m.AttendanceCount__c} ／ 委任: {m.ProxyCount__c} ／ 欠席: {m.AbsenceCount__c}
+                                    </p>
+                                </div>
+                                <div class="slds-col_bump-left slds-grid">
+                                    <lightning-button label="詳細" data-id={m.Id} onclick={handleSelectMeeting}></lightning-button>
+                                    <lightning-button label="催促送信" variant="destructive-text" data-id={m.Id} onclick={handleSendReminder} class="slds-m-left_x-small"></lightning-button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </lightning-card>
+            </template>
+
+            <!-- Admin Detail View -->
+            <template if:true={selectedMeeting}>
+                <div class="slds-m-bottom_small">
+                    <lightning-button label="← 一覧に戻る" onclick={handleBack} variant="base"></lightning-button>
+                </div>
+                <lightning-card title={selectedMeeting.Name} icon-name="utility:groups">
+                    <div class="slds-m-around_medium">
+                        <dl class="slds-dl_horizontal slds-m-bottom_medium">
+                            <dt class="slds-dl_horizontal__label">開催日時</dt>
+                            <dd class="slds-dl_horizontal__detail">{selectedMeeting.formattedDate}</dd>
+                            <dt class="slds-dl_horizontal__label">場所</dt>
+                            <dd class="slds-dl_horizontal__detail">{selectedMeeting.Location__c}</dd>
+                            <dt class="slds-dl_horizontal__label">回答期限</dt>
+                            <dd class="slds-dl_horizontal__detail">{selectedMeeting.formattedDeadline}</dd>
+                            <dt class="slds-dl_horizontal__label">ステータス</dt>
+                            <dd class="slds-dl_horizontal__detail">{selectedMeeting.MeetingStatus__c}</dd>
+                        </dl>
+
+                        <div class="slds-grid slds-m-bottom_medium">
+                            <lightning-button label="受付開始" data-status="出欠受付中" onclick={handleUpdateStatus}></lightning-button>
+                            <lightning-button label="締め切り" data-status="締め切り" onclick={handleUpdateStatus} class="slds-m-left_x-small"></lightning-button>
+                            <lightning-button label="開催済み" data-status="開催済み" onclick={handleUpdateStatus} class="slds-m-left_x-small"></lightning-button>
+                            <lightning-button variant="destructive-text" label="催促メール送信" onclick={handleSendReminderForSelected} class="slds-m-left_x-small"></lightning-button>
+                        </div>
+
+                        <!-- Response Table -->
+                        <h3 class="slds-text-heading_small slds-m-bottom_small">回答一覧</h3>
+                        <lightning-datatable
+                            key-field="Id"
+                            data={responses}
+                            columns={responseColumns}
+                            hide-checkbox-column>
+                        </lightning-datatable>
+                    </div>
+                </lightning-card>
+            </template>
+        </template>
+
+        <!-- Member Response Form -->
+        <template if:false={isAdmin}>
+            <template for:each={meetings} for:item="m">
+                <lightning-card key={m.Id} title={m.Name} icon-name="utility:groups" class="slds-m-bottom_medium">
+                    <div class="slds-m-around_medium">
+                        <div class="slds-grid slds-wrap slds-m-bottom_medium">
+                            <div class="slds-col slds-size_1-of-2">
+                                <p><strong>開催日時:</strong> {m.formattedDate}</p>
+                                <p><strong>場所:</strong> {m.Location__c}</p>
+                                <p><strong>回答期限:</strong> {m.formattedDeadline}</p>
+                            </div>
+                            <div class="slds-col slds-size_1-of-2" style="white-space: pre-wrap;">{m.Agenda__c}</div>
+                        </div>
+
+                        <template if:true={m.AttachmentUrl__c}>
+                            <p class="slds-m-bottom_medium">
+                                <a href={m.AttachmentUrl__c} target="_blank">📄 総会資料をダウンロード</a>
+                            </p>
+                        </template>
+
+                        <template if:true={m.existingResponse}>
+                            <div class="slds-notify slds-notify_toast slds-theme_success slds-m-bottom_small" role="alert">
+                                <p>回答済み: <strong>{m.existingResponse.AttendanceChoice__c}</strong> （{m.existingResponse.SubmittedAt__c}）</p>
+                            </div>
+                        </template>
+
+                        <template if:true={m.isOpen}>
+                            <div class="slds-box slds-theme_shade">
+                                <h3 class="slds-text-heading_small slds-m-bottom_small">出欠をご回答ください</h3>
+
+                                <lightning-radio-group
+                                    label="出欠区分 *"
+                                    options={attendanceOptions}
+                                    value={m.attendanceChoice}
+                                    type="radio"
+                                    data-id={m.Id}
+                                    onchange={handleAttendanceChange}>
+                                </lightning-radio-group>
+
+                                <template if:true={m.showProxy}>
+                                    <lightning-input
+                                        label="委任先氏名 *"
+                                        value={m.proxyName}
+                                        data-id={m.Id}
+                                        onchange={handleProxyNameChange}
+                                        class="slds-m-top_small">
+                                    </lightning-input>
+                                </template>
+
+                                <template if:true={m.showVoting}>
+                                    <div class="slds-m-top_small">
+                                        <p class="slds-text-body_small slds-m-bottom_x-small">議決権行使（各議案について賛否をご選択ください）</p>
+                                        <template for:each={m.agendaItems} for:item="item">
+                                            <div key={item.key} class="slds-grid slds-m-bottom_xx-small">
+                                                <span class="slds-col">{item.label}</span>
+                                                <lightning-radio-group
+                                                    options={votingOptions}
+                                                    value={item.value}
+                                                    type="button"
+                                                    data-meeting={m.Id}
+                                                    data-key={item.key}
+                                                    onchange={handleVotingChange}
+                                                    class="slds-col_bump-left">
+                                                </lightning-radio-group>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <lightning-button
+                                    variant="brand"
+                                    label="回答を送信"
+                                    data-id={m.Id}
+                                    onclick={handleSubmit}
+                                    disabled={m.isSubmitting}
+                                    class="slds-m-top_small">
+                                </lightning-button>
+                            </div>
+                        </template>
+
+                        <template if:false={m.isOpen}>
+                            <p class="slds-text-body_small slds-text-color_weak">受付期間外です。</p>
+                        </template>
+                    </div>
+                </lightning-card>
+            </template>
+        </template>
+
+        <!-- Create Meeting Modal (admin) -->
+        <template if:true={showCreateModal}>
+            <section role="dialog" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <h2 class="slds-modal__title">新規総会を作成</h2>
+                        <lightning-button-icon icon-name="utility:close" onclick={handleCloseModal} alternative-text="閉じる" class="slds-modal__close" variant="bare-inverse"></lightning-button-icon>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <lightning-input label="総会名 *" data-field="name" required></lightning-input>
+                        <lightning-input type="number" label="年度 *" data-field="fiscalYear" value={currentYear} class="slds-m-top_x-small"></lightning-input>
+                        <lightning-input type="datetime-local" label="開催日時 *" data-field="meetingDate" class="slds-m-top_x-small"></lightning-input>
+                        <lightning-input label="開催場所" data-field="location" class="slds-m-top_x-small"></lightning-input>
+                        <lightning-input type="url" label="オンラインURL" data-field="onlineUrl" class="slds-m-top_x-small"></lightning-input>
+                        <lightning-input type="datetime-local" label="回答期限" data-field="responseDeadline" class="slds-m-top_x-small"></lightning-input>
+                        <lightning-input type="url" label="資料URL" data-field="attachmentUrl" class="slds-m-top_x-small"></lightning-input>
+                        <lightning-textarea label="議事内容" data-field="agenda" class="slds-m-top_x-small"></lightning-textarea>
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <lightning-button label="キャンセル" onclick={handleCloseModal}></lightning-button>
+                        <lightning-button variant="brand" label="作成" onclick={handleSubmitCreate}></lightning-button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+    </div>
+</template>

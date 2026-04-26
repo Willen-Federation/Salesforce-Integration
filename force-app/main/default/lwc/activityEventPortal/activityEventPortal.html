@@ -1,0 +1,161 @@
+<template>
+    <div class="slds-container_x-large slds-container_center slds-p-around_medium">
+
+        <!-- Event List View -->
+        <template if:false={selectedEvent}>
+            <div class="slds-page-header slds-m-bottom_medium">
+                <div class="slds-page-header__row">
+                    <div class="slds-page-header__col-title">
+                        <h1 class="slds-page-header__title">活動・イベント一覧</h1>
+                    </div>
+                    <template if:true={isAdmin}>
+                        <div class="slds-page-header__col-actions">
+                            <lightning-button variant="brand" label="イベントを作成" icon-name="utility:add" onclick={handleCreateEvent}></lightning-button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="読み込み中"></lightning-spinner>
+            </template>
+
+            <template if:false={isLoading}>
+                <template if:true={events.length}>
+                    <div class="slds-grid slds-wrap">
+                        <template for:each={events} for:item="event">
+                            <div key={event.Id} class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-3 slds-p-around_small">
+                                <lightning-card class="event-card">
+                                    <div class="slds-m-around_medium">
+                                        <h2 class="slds-text-heading_small slds-m-bottom_x-small">{event.ActivityTitle__c}</h2>
+                                        <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_x-small">
+                                            <lightning-icon icon-name="utility:event" size="x-small" class="slds-m-right_xx-small"></lightning-icon>
+                                            {event.formattedStartDate}
+                                        </p>
+                                        <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_x-small">
+                                            <lightning-icon icon-name="utility:location" size="x-small" class="slds-m-right_xx-small"></lightning-icon>
+                                            {event.Location__c}
+                                        </p>
+                                        <template if:true={event.RegistrationFee__c}>
+                                            <p class="slds-text-body_small slds-m-bottom_x-small">参加費: ¥{event.RegistrationFee__c}</p>
+                                        </template>
+                                        <template if:false={event.RegistrationFee__c}>
+                                            <p class="slds-text-body_small slds-text-color_success slds-m-bottom_x-small">参加費: 無料</p>
+                                        </template>
+                                        <p class="slds-text-body_small slds-m-bottom_small">
+                                            定員: {event.CurrentParticipants__c} / {event.MaxParticipants__c}
+                                        </p>
+                                        <lightning-button
+                                            variant="brand"
+                                            label="詳細・申込"
+                                            onclick={handleViewEvent}
+                                            data-id={event.Id}>
+                                        </lightning-button>
+                                    </div>
+                                </lightning-card>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+                <template if:false={events.length}>
+                    <div class="slds-align_absolute-center slds-p-around_large">
+                        <p class="slds-text-body_regular slds-text-color_weak">現在公開中のイベントはありません。</p>
+                    </div>
+                </template>
+            </template>
+        </template>
+
+        <!-- Event Detail + Registration Form -->
+        <template if:true={selectedEvent}>
+            <div class="slds-m-bottom_small">
+                <lightning-button label="← イベント一覧に戻る" onclick={handleBack} variant="base"></lightning-button>
+            </div>
+
+            <lightning-card title={selectedEvent.ActivityTitle__c} icon-name="utility:event">
+                <div class="slds-m-around_medium">
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-1 slds-large-size_2-of-3 slds-p-right_medium">
+                            <dl class="slds-dl_horizontal slds-m-bottom_medium">
+                                <dt class="slds-dl_horizontal__label">開催日時</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedEvent.formattedStartDate}</dd>
+                                <dt class="slds-dl_horizontal__label">終了日時</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedEvent.formattedEndDate}</dd>
+                                <dt class="slds-dl_horizontal__label">場所</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedEvent.Location__c}</dd>
+                                <dt class="slds-dl_horizontal__label">参加費</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedEvent.feeDisplay}</dd>
+                                <dt class="slds-dl_horizontal__label">申込締切</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedEvent.RegistrationDeadline__c}</dd>
+                                <dt class="slds-dl_horizontal__label">定員</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedEvent.CurrentParticipants__c} / {selectedEvent.MaxParticipants__c} 名</dd>
+                            </dl>
+                            <p class="slds-text-body_regular" style="white-space: pre-wrap;">{selectedEvent.Description__c}</p>
+                        </div>
+
+                        <!-- Registration Form -->
+                        <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-3">
+                            <template if:false={registrationDone}>
+                                <div class="slds-box slds-theme_shade">
+                                    <h3 class="slds-text-heading_small slds-m-bottom_small">参加申込</h3>
+
+                                    <template if:true={errorMessage}>
+                                        <div class="slds-notify slds-notify_toast slds-theme_error slds-m-bottom_small" role="alert">
+                                            <p>{errorMessage}</p>
+                                        </div>
+                                    </template>
+
+                                    <lightning-input label="お名前 *" value={regName} onchange={handleRegChange} data-field="regName" required></lightning-input>
+                                    <lightning-input type="email" label="メールアドレス *" value={regEmail} onchange={handleRegChange} data-field="regEmail" required class="slds-m-top_x-small"></lightning-input>
+                                    <lightning-input label="所属組織" value={regOrg} onchange={handleRegChange} data-field="regOrg" class="slds-m-top_x-small"></lightning-input>
+                                    <lightning-textarea label="メッセージ・質問（任意）" value={regRemarks} onchange={handleRegChange} data-field="regRemarks" class="slds-m-top_x-small"></lightning-textarea>
+
+                                    <lightning-button
+                                        variant="brand"
+                                        label="申込を送信"
+                                        onclick={handleRegister}
+                                        disabled={isSubmitting}
+                                        class="slds-m-top_small">
+                                    </lightning-button>
+                                </div>
+                            </template>
+                            <template if:true={registrationDone}>
+                                <div class="slds-notify slds-notify_toast slds-theme_success" role="alert">
+                                    <p class="slds-text-heading_small">参加申込が完了しました！</p>
+                                    <p class="slds-m-top_x-small">ご登録のメールアドレスに確認メールをお送りします。</p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </lightning-card>
+        </template>
+
+        <!-- Create Event Modal (admin only) -->
+        <template if:true={showCreateModal}>
+            <section role="dialog" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <h2 class="slds-modal__title">イベントを作成</h2>
+                        <lightning-button-icon icon-name="utility:close" onclick={handleCloseModal} alternative-text="閉じる" class="slds-modal__close" variant="bare-inverse"></lightning-button-icon>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <lightning-input label="タイトル *" data-field="title" required></lightning-input>
+                        <lightning-input type="datetime-local" label="開始日時" data-field="eventStartDatetime" class="slds-m-top_x-small"></lightning-input>
+                        <lightning-input type="datetime-local" label="終了日時" data-field="eventEndDatetime" class="slds-m-top_x-small"></lightning-input>
+                        <lightning-input label="場所" data-field="location" class="slds-m-top_x-small"></lightning-input>
+                        <lightning-input type="date" label="申込締切日" data-field="registrationDeadline" class="slds-m-top_x-small"></lightning-input>
+                        <lightning-input type="number" label="定員" data-field="maxParticipants" class="slds-m-top_x-small"></lightning-input>
+                        <lightning-input type="number" label="参加費（円）" data-field="registrationFee" class="slds-m-top_x-small"></lightning-input>
+                        <lightning-input type="checkbox" label="外部公開" data-field="isPublic" class="slds-m-top_x-small"></lightning-input>
+                        <lightning-textarea label="概要・説明" data-field="description" class="slds-m-top_x-small"></lightning-textarea>
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <lightning-button label="キャンセル" onclick={handleCloseModal}></lightning-button>
+                        <lightning-button variant="brand" label="作成" onclick={handleSubmitEvent}></lightning-button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+    </div>
+</template>

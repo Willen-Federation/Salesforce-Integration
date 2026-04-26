@@ -1,0 +1,121 @@
+<template>
+    <div class="slds-grid slds-has-flexi-truncate" style="height: 100vh;">
+
+        <!-- Sidebar: Page Tree -->
+        <div class="slds-col slds-size_1-of-5 slds-border_right" style="overflow-y: auto; background: #f4f6f9;">
+            <div class="slds-p-around_small">
+                <div class="slds-grid slds-m-bottom_small">
+                    <p class="slds-col slds-text-heading_small slds-truncate">{wikiName}</p>
+                    <template if:true={canEdit}>
+                        <lightning-button-icon icon-name="utility:add" size="x-small" onclick={handleNewPage} alternative-text="新規ページ" title="新規ページ作成"></lightning-button-icon>
+                    </template>
+                </div>
+                <template if:true={pages.length}>
+                    <ul class="slds-has-dividers_top-space">
+                        <template for:each={pageTree} for:item="page">
+                            <li key={page.Id} class="slds-item">
+                                <a class="slds-text-link_reset slds-p-vertical_xx-small slds-p-left_small slds-display_block"
+                                   data-id={page.Id}
+                                   onclick={handleSelectPage}
+                                   style={page.activeCss}>
+                                    <lightning-icon icon-name="utility:file" size="x-small" class="slds-m-right_xx-small"></lightning-icon>
+                                    {page.Name}
+                                </a>
+                                <template if:true={page.children}>
+                                    <ul>
+                                        <template for:each={page.children} for:item="child">
+                                            <li key={child.Id} class="slds-item slds-p-left_medium">
+                                                <a class="slds-text-link_reset slds-p-vertical_xx-small slds-display_block"
+                                                   data-id={child.Id}
+                                                   onclick={handleSelectPage}
+                                                   style={child.activeCss}>
+                                                    {child.Name}
+                                                </a>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </template>
+                            </li>
+                        </template>
+                    </ul>
+                </template>
+                <template if:false={pages.length}>
+                    <p class="slds-text-body_small slds-text-color_weak slds-p-around_small">ページがありません</p>
+                </template>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="slds-col slds-size_4-of-5" style="overflow-y: auto;">
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="読み込み中"></lightning-spinner>
+            </template>
+
+            <!-- View Mode -->
+            <template if:true={selectedPage}>
+                <template if:false={isEditing}>
+                    <div class="slds-p-around_medium">
+                        <div class="slds-grid slds-m-bottom_small">
+                            <h1 class="slds-col slds-text-heading_medium">{selectedPage.Name}</h1>
+                            <div class="slds-col_bump-left slds-grid">
+                                <span class="slds-text-body_small slds-text-color_weak slds-m-right_small">
+                                    最終更新: {selectedPage.LastEditedBy__r.Name} / 閲覧数: {selectedPage.ViewCount__c}
+                                </span>
+                                <template if:true={canEdit}>
+                                    <lightning-button label="編集" icon-name="utility:edit" onclick={handleEdit} size="small"></lightning-button>
+                                </template>
+                            </div>
+                        </div>
+                        <template if:true={selectedPage.Tags__c}>
+                            <div class="slds-m-bottom_small">
+                                <template for:each={tagList} for:item="tag">
+                                    <lightning-badge key={tag} label={tag} class="slds-m-right_xx-small"></lightning-badge>
+                                </template>
+                            </div>
+                        </template>
+                        <!-- Rendered Markdown content -->
+                        <div class="wiki-content slds-rich-text-editor__output" style="white-space: pre-wrap; font-family: sans-serif; line-height: 1.7;">
+                            {selectedPage.Content__c}
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Edit Mode -->
+                <template if:true={isEditing}>
+                    <div class="slds-p-around_medium">
+                        <div class="slds-grid slds-m-bottom_small">
+                            <lightning-input label="ページタイトル" value={editTitle} onchange={handleTitleChange} class="slds-col slds-m-right_small"></lightning-input>
+                            <lightning-input label="タグ（カンマ区切り）" value={editTags} onchange={handleTagsChange} class="slds-col slds-m-right_small"></lightning-input>
+                            <lightning-combobox label="ステータス" value={editStatus} options={statusOptions} onchange={handleStatusChange} class="slds-col_shrink-none" style="min-width:120px;"></lightning-combobox>
+                        </div>
+                        <lightning-textarea
+                            label="本文（Markdown対応）"
+                            value={editContent}
+                            onchange={handleContentChange}
+                            rows="30"
+                            class="slds-m-bottom_small">
+                        </lightning-textarea>
+                        <lightning-input label="編集サマリー" value={editSummary} onchange={handleSummaryChange} class="slds-m-bottom_small"></lightning-input>
+                        <div class="slds-grid">
+                            <lightning-button label="キャンセル" onclick={handleCancelEdit}></lightning-button>
+                            <lightning-button variant="brand" label="保存" onclick={handleSave} class="slds-m-left_small" disabled={isSaving}></lightning-button>
+                        </div>
+                    </div>
+                </template>
+            </template>
+
+            <!-- Wiki Home -->
+            <template if:false={selectedPage}>
+                <div class="slds-p-around_medium">
+                    <h1 class="slds-text-heading_large slds-m-bottom_medium">{wikiName}</h1>
+                    <template if:true={homeContent}>
+                        <div class="wiki-content" style="white-space: pre-wrap; line-height: 1.7;">{homeContent}</div>
+                    </template>
+                    <template if:false={homeContent}>
+                        <p class="slds-text-body_regular slds-text-color_weak">ページを選択するか、新規ページを作成してください。</p>
+                    </template>
+                </div>
+            </template>
+        </div>
+    </div>
+</template>
