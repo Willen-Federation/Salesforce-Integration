@@ -1,0 +1,35 @@
+<template>
+    <lightning-card title="サポート・お問い合わせ" icon-name="utility:question_mark">
+        <div class="slds-card__body slds-card__body_inner">
+            <template if:true={isSubmitted}>
+                <div class="slds-notify slds-notify_toast slds-theme_success" role="status">
+                    <p class="slds-text-heading_small">お問い合わせを受け付けました。（番号: {submittedName}）</p>
+                    <p>担当者より3営業日以内にご連絡いたします。</p>
+                </div>
+            </template>
+            <template if:false={isSubmitted}>
+                <div class="slds-form slds-form_stacked">
+                    <lightning-input label="お名前" value={contactName} onchange={handleName} required></lightning-input>
+                    <lightning-input type="email" label="メールアドレス" value={contactEmail} onchange={handleEmail} required></lightning-input>
+                    <lightning-combobox label="カテゴリ" value={category} options={categoryOptions} onchange={handleCategory} required></lightning-combobox>
+                    <lightning-input label="件名" value={subject} onchange={handleSubject} required></lightning-input>
+                    <lightning-textarea label="お問い合わせ内容" value={body} onchange={handleBody} required max-length="5000" placeholder="具体的な内容をご記入ください。"></lightning-textarea>
+                    <template if:true={hasError}>
+                        <div class="slds-notify slds-notify_toast slds-theme_error"><p>{errorMessage}</p></div>
+                    </template>
+                    <div class="slds-m-top_medium">
+                        <lightning-button label="送信する" variant="brand" onclick={handleSubmit} disabled={isSubmitting}></lightning-button>
+                    </div>
+                </div>
+            </template>
+
+            <!-- 問い合わせ履歴 -->
+            <template if:true={hasHistory}>
+                <div class="slds-m-top_large">
+                    <h3 class="slds-text-heading_small slds-m-bottom_small">お問い合わせ履歴</h3>
+                    <lightning-datatable key-field="Id" data={inquiries} columns={columns} hide-checkbox-column onrowaction={handleViewDetail}></lightning-datatable>
+                </div>
+            </template>
+        </div>
+    </lightning-card>
+</template>

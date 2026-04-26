@@ -1,0 +1,54 @@
+<template>
+    <lightning-card title="組織図" icon-name="utility:hierarchy">
+        <div class="slds-card__body slds-card__body_inner">
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="読み込み中..." size="medium"></lightning-spinner>
+            </template>
+            <template if:false={isLoading}>
+                <div class="org-chart-container">
+                    <template for:each={rootUnits} for:item="unit">
+                        <c-org-unit-node key={unit.Id} unit={unit} depth="0" onselect={handleUnitSelect}></c-org-unit-node>
+                    </template>
+                </div>
+
+                <!-- 選択された組織の詳細パネル -->
+                <template if:true={selectedUnit}>
+                    <aside class="slds-panel slds-size_medium slds-panel_docked slds-panel_docked-right slds-is-open detail-panel">
+                        <div class="slds-panel__header">
+                            <h2 class="slds-panel__header-title">{selectedUnit.Name}</h2>
+                            <lightning-button-icon icon-name="utility:close" onclick={clearSelection} variant="bare" alternative-text="閉じる"></lightning-button-icon>
+                        </div>
+                        <div class="slds-panel__body slds-p-around_medium">
+                            <dl class="slds-dl_horizontal">
+                                <dt class="slds-dl_horizontal__label">組織種別</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedUnit.UnitType__c}</dd>
+                                <dt class="slds-dl_horizontal__label">組織コード</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedUnit.UnitCode__c}</dd>
+                                <dt class="slds-dl_horizontal__label">責任者</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedUnit.Manager__r.LastName__c}</dd>
+                                <dt class="slds-dl_horizontal__label">設立日</dt>
+                                <dd class="slds-dl_horizontal__detail">
+                                    <lightning-formatted-date-time value={selectedUnit.EstablishedDate__c} year="numeric" month="long" day="numeric"></lightning-formatted-date-time>
+                                </dd>
+                            </dl>
+                            <p class="slds-text-body_regular slds-m-top_small">{selectedUnit.Description__c}</p>
+
+                            <h3 class="slds-text-heading_small slds-m-top_medium slds-m-bottom_small">所属会員</h3>
+                            <template for:each={unitMembers} for:item="m">
+                                <div key={m.Id} class="slds-media slds-m-bottom_x-small member-row">
+                                    <div class="slds-media__figure">
+                                        <lightning-icon icon-name="standard:contact" size="small"></lightning-icon>
+                                    </div>
+                                    <div class="slds-media__body">
+                                        <p>{m.LastName__c} {m.FirstName__c}</p>
+                                        <p class="slds-text-color_weak slds-text-body_small">{m.Position__c}</p>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </aside>
+                </template>
+            </template>
+        </div>
+    </lightning-card>
+</template>

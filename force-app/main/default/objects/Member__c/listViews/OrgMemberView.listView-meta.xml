@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>OrgMemberView</fullName>
+    <label>組織会員一覧（管理者用）</label>
+    <filterScope>Everything</filterScope>
+    <filters>
+        <field>MemberStatus__c</field>
+        <operation>equals</operation>
+        <value>正会員,準会員,賛助会員</value>
+    </filters>
+    <columns>Name</columns>
+    <columns>LastName__c</columns>
+    <columns>FirstName__c</columns>
+    <columns>Email__c</columns>
+    <columns>MemberType__c</columns>
+    <columns>MemberStatus__c</columns>
+    <columns>Organization__c</columns>
+    <columns>OrgUnit__c</columns>
+    <columns>Position__c</columns>
+    <columns>JoinDate__c</columns>
+    <sharedTo>
+        <group>MemberPortalAdmins</group>
+    </sharedTo>
+</ListView>

@@ -1,0 +1,290 @@
+<template>
+    <lightning-card title="個別通知コンポーザー" icon-name="utility:notification">
+        <div class="slds-m-around_medium">
+
+            <template if:true={errorMessage}>
+                <div class="slds-notify slds-notify_toast slds-theme_error slds-m-bottom_small" role="alert">
+                    <p>{errorMessage}</p>
+                </div>
+            </template>
+            <template if:true={successMessage}>
+                <div class="slds-notify slds-notify_toast slds-theme_success slds-m-bottom_small" role="status">
+                    <p>{successMessage}</p>
+                </div>
+            </template>
+
+            <lightning-accordion allow-multiple-sections-open active-section-name="recipient,channel,content,schedule">
+
+                <!-- 受信者設定 -->
+                <lightning-accordion-section name="recipient" label="受信者設定">
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-2 slds-p-right_small">
+                            <lightning-combobox
+                                label="受信者タイプ"
+                                value={recipientType}
+                                options={recipientTypeOptions}
+                                onchange={handleRecipientTypeChange}>
+                            </lightning-combobox>
+                        </div>
+
+                        <template if:true={showMemberSearch}>
+                            <div class="slds-col slds-size_1-of-2">
+                                <lightning-input
+                                    label="会員ID（カンマ区切りで複数指定可）"
+                                    value={recipientMemberIds}
+                                    onchange={handleFieldChange}
+                                    data-field="recipientMemberIds"
+                                    placeholder="例: a01xx000000abcd, a01xx000000efgh">
+                                </lightning-input>
+                            </div>
+                        </template>
+
+                        <template if:true={showOrgUnitPicker}>
+                            <div class="slds-col slds-size_1-of-2">
+                                <lightning-combobox
+                                    label="組織単位"
+                                    value={recipientOrgUnit}
+                                    options={orgUnitOptions}
+                                    onchange={handleFieldChange}
+                                    data-field="recipientOrgUnit">
+                                </lightning-combobox>
+                            </div>
+                        </template>
+
+                        <template if:true={showMemberTypePicker}>
+                            <div class="slds-col slds-size_1-of-2">
+                                <lightning-combobox
+                                    label="会員種別"
+                                    value={recipientMemberType}
+                                    options={memberTypeOptions}
+                                    onchange={handleFieldChange}
+                                    data-field="recipientMemberType">
+                                </lightning-combobox>
+                            </div>
+                        </template>
+
+                        <template if:true={isAllMembers}>
+                            <div class="slds-col slds-size_1-of-1 slds-m-top_x-small">
+                                <p class="slds-text-body_small slds-text-color_weak">全会員（{memberCount}名）に送信されます。</p>
+                            </div>
+                        </template>
+                    </div>
+                </lightning-accordion-section>
+
+                <!-- 配信チャンネル -->
+                <lightning-accordion-section name="channel" label="配信チャンネル">
+                    <lightning-checkbox-group
+                        label="送信先チャンネル"
+                        options={channelOptions}
+                        value={selectedChannels}
+                        onchange={handleChannelChange}>
+                    </lightning-checkbox-group>
+                </lightning-accordion-section>
+
+                <!-- 通知内容 -->
+                <lightning-accordion-section name="content" label="通知内容">
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                            <lightning-input
+                                label="件名"
+                                value={subject}
+                                onchange={handleFieldChange}
+                                data-field="subject"
+                                placeholder="例: {!Member.Name} 様へのご案内">
+                            </lightning-input>
+                        </div>
+
+                        <!-- 差し込みフィールド（PlaceFolder） -->
+                        <div class="slds-col slds-size_1-of-1 slds-m-bottom_x-small">
+                            <div class="slds-grid slds-grid_vertical-align-end">
+                                <div class="slds-col slds-size_3-of-12 slds-p-right_small">
+                                    <lightning-combobox
+                                        label="差し込み元オブジェクト"
+                                        value={relatedObjectType}
+                                        options={objectTypeOptions}
+                                        onchange={handleObjectTypeChange}>
+                                    </lightning-combobox>
+                                </div>
+                                <template if:true={showRelatedRecordId}>
+                                    <div class="slds-col slds-size_3-of-12 slds-p-right_small">
+                                        <lightning-input
+                                            label="関連レコードID"
+                                            value={relatedRecordId}
+                                            onchange={handleFieldChange}
+                                            data-field="relatedRecordId"
+                                            placeholder="レコードID">
+                                        </lightning-input>
+                                    </div>
+                                </template>
+                                <div class="slds-col slds-size_3-of-12 slds-p-right_small">
+                                    <lightning-combobox
+                                        label="差し込みフィールド"
+                                        value={selectedPlaceholder}
+                                        options={placeholderOptions}
+                                        onchange={handlePlaceholderSelect}
+                                        disabled={noPlaceholders}>
+                                    </lightning-combobox>
+                                </div>
+                                <div class="slds-col">
+                                    <lightning-button
+                                        label="本文に挿入"
+                                        icon-name="utility:insert_tag_field"
+                                        onclick={handleInsertPlaceholder}
+                                        disabled={noPlaceholders}>
+                                    </lightning-button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="slds-col slds-size_1-of-1">
+                            <lightning-textarea
+                                label="本文テンプレート"
+                                value={bodyTemplate}
+                                onchange={handleBodyChange}
+                                rows="10"
+                                placeholder="例: {!Member.Name} 様&#10;&#10;いつもお世話になっております。&#10;&#10;{!Today} 現在のお知らせをご案内いたします。">
+                            </lightning-textarea>
+                            <div class="slds-grid slds-grid_vertical-align-center slds-m-top_xx-small">
+                                <p class="slds-col slds-text-body_small slds-text-color_weak">
+                                    使用可能: {!Member.Name} {!Member.Email} {!Today} {!Now}
+                                    <template if:true={showPaymentPlaceholders}> {!Payment.Amount} {!Payment.Status}</template>
+                                    <template if:true={showMeetingPlaceholders}> {!Meeting.Date} {!Meeting.Location}</template>
+                                </p>
+                                <lightning-button
+                                    label="テストメール送信"
+                                    icon-name="utility:email"
+                                    variant="neutral"
+                                    onclick={handleToggleTestPanel}
+                                    class="slds-col_bump-left">
+                                </lightning-button>
+                            </div>
+                        </div>
+
+                        <!-- テストメール送信パネル -->
+                        <template if:true={showTestPanel}>
+                            <div class="slds-col slds-size_1-of-1 slds-m-top_small">
+                                <div class="slds-box slds-theme_shade">
+                                    <h4 class="slds-text-heading_small slds-m-bottom_small">テストメール送信</h4>
+                                    <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_small">
+                                        現在のユーザーに紐づく会員情報でマージして指定アドレスに送信します。
+                                        差し込み結果のプレビューを確認できます。
+                                    </p>
+                                    <div class="slds-grid slds-grid_vertical-align-end">
+                                        <div class="slds-col slds-size_8-of-12 slds-p-right_small">
+                                            <lightning-input
+                                                type="email"
+                                                label="送信先メールアドレス"
+                                                value={testEmailAddress}
+                                                onchange={handleFieldChange}
+                                                data-field="testEmailAddress"
+                                                placeholder="test@example.com">
+                                            </lightning-input>
+                                        </div>
+                                        <div class="slds-col">
+                                            <lightning-button
+                                                variant="brand"
+                                                label="テスト送信"
+                                                icon-name="utility:send"
+                                                onclick={handleSendTestEmail}
+                                                disabled={isTestSending}>
+                                            </lightning-button>
+                                            <template if:true={isTestSending}>
+                                                <lightning-spinner size="small" alternative-text="送信中"></lightning-spinner>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    <template if:true={testSentSuccess}>
+                                        <div class="slds-notify slds-notify_toast slds-theme_success slds-m-top_small" role="status">
+                                            <p>テストメールを送信しました。</p>
+                                        </div>
+                                    </template>
+
+                                    <!-- マージ済みプレビュー -->
+                                    <template if:true={mergedPreview}>
+                                        <div class="slds-m-top_small">
+                                            <h5 class="slds-text-title_caps slds-m-bottom_x-small">差し込み結果プレビュー</h5>
+                                            <div class="slds-box slds-theme_default" style="white-space: pre-wrap; font-family: monospace; font-size: 0.8rem; max-height: 200px; overflow-y: auto;">
+                                                {mergedPreview}
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </lightning-accordion-section>
+
+                <!-- 送信スケジュール -->
+                <lightning-accordion-section name="schedule" label="送信タイミング">
+                    <div class="slds-grid slds-wrap slds-grid_vertical-align-center">
+                        <div class="slds-col slds-size_1-of-2 slds-p-right_small">
+                            <lightning-combobox
+                                label="送信モード"
+                                value={sendMode}
+                                options={sendModeOptions}
+                                onchange={handleSendModeChange}>
+                            </lightning-combobox>
+                        </div>
+                        <template if:true={showScheduleTime}>
+                            <div class="slds-col slds-size_1-of-2">
+                                <lightning-input
+                                    type="datetime-local"
+                                    label="予約送信日時"
+                                    value={scheduledSendTime}
+                                    onchange={handleFieldChange}
+                                    data-field="scheduledSendTime">
+                                </lightning-input>
+                            </div>
+                        </template>
+                    </div>
+                </lightning-accordion-section>
+            </lightning-accordion>
+
+            <!-- アクション -->
+            <div class="slds-grid slds-m-top_medium">
+                <lightning-button
+                    label="下書き保存"
+                    onclick={handleSaveDraft}
+                    disabled={isBusy}>
+                </lightning-button>
+                <template if:true={isScheduleMode}>
+                    <lightning-button
+                        variant="brand"
+                        label="予約送信"
+                        onclick={handleScheduleSend}
+                        class="slds-m-left_small"
+                        disabled={isBusy}>
+                    </lightning-button>
+                </template>
+                <template if:false={isScheduleMode}>
+                    <lightning-button
+                        variant="brand"
+                        label="今すぐ送信"
+                        icon-name="utility:send"
+                        onclick={handleSendNow}
+                        class="slds-m-left_small"
+                        disabled={isBusy}>
+                    </lightning-button>
+                </template>
+                <template if:true={isBusy}>
+                    <lightning-spinner size="small" class="slds-m-left_small" alternative-text="処理中"></lightning-spinner>
+                </template>
+            </div>
+
+            <!-- 送信履歴 -->
+            <template if:true={recentNotifications.length}>
+                <div class="slds-m-top_large">
+                    <h3 class="slds-text-heading_small slds-m-bottom_small">最近の送信履歴</h3>
+                    <lightning-datatable
+                        key-field="Id"
+                        data={recentNotifications}
+                        columns={historyColumns}
+                        hide-checkbox-column>
+                    </lightning-datatable>
+                </div>
+            </template>
+
+        </div>
+    </lightning-card>
+</template>

@@ -1,0 +1,151 @@
+<template>
+    <lightning-card title="ポータル設定（管理者）" icon-name="utility:settings">
+        <div class="slds-m-around_medium">
+
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="読み込み中" size="medium"></lightning-spinner>
+            </template>
+
+            <template if:true={saveSuccess}>
+                <div class="slds-notify slds-notify_toast slds-theme_success" role="alert">
+                    <span class="slds-assistive-text">success</span>
+                    <p>設定を保存しました。</p>
+                </div>
+            </template>
+
+            <template if:true={errorMessage}>
+                <div class="slds-notify slds-notify_toast slds-theme_error" role="alert">
+                    <p>{errorMessage}</p>
+                </div>
+            </template>
+
+            <!-- 基本設定 -->
+            <lightning-accordion allow-multiple-sections-open active-section-name="basic,payjp">
+                <lightning-accordion-section name="basic" label="基本設定">
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-2 slds-p-right_small">
+                            <lightning-input label="組織名" data-key="organizationName" value={config.organizationName} onchange={handleChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input type="email" label="送信元メールアドレス" data-key="fromEmailAddress" value={config.fromEmailAddress} onchange={handleChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-p-right_small slds-m-top_small">
+                            <lightning-input type="url" label="ポータルURL" data-key="portalBaseUrl" value={config.portalBaseUrl} onchange={handleChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-m-top_small">
+                            <lightning-input label="サポートSlackチャンネルID" data-key="supportSlackChannelId" value={config.supportSlackChannelId} onchange={handleChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-p-right_small slds-m-top_small">
+                            <lightning-input label="SlackボットToken" type="password" data-key="slackBotToken" onchange={handleChange} placeholder="xoxb-xxxxxxxx"></lightning-input>
+                        </div>
+                    </div>
+                    <div class="slds-grid slds-wrap slds-m-top_small">
+                        <div class="slds-col slds-size_1-of-4 slds-p-right_small">
+                            <lightning-input type="number" label="個人会員 年会費（円）" data-key="annualFeeIndividual" value={config.annualFeeIndividual} onchange={handleChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-4 slds-p-right_small">
+                            <lightning-input type="number" label="法人会員 年会費（円）" data-key="annualFeeCorporate" value={config.annualFeeCorporate} onchange={handleChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-4 slds-p-right_small">
+                            <lightning-input type="number" label="学生会員 年会費（円）" data-key="annualFeeStudent" value={config.annualFeeStudent} onchange={handleChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-4">
+                            <lightning-input type="number" label="賛助会員 年会費（円）" data-key="annualFeeSupporting" value={config.annualFeeSupporting} onchange={handleChange}></lightning-input>
+                        </div>
+                    </div>
+                    <div class="slds-grid slds-m-top_small">
+                        <div class="slds-col slds-p-right_small">
+                            <lightning-input type="checkbox" label="寄付機能を有効化" data-key="enableDonation" checked={config.enableDonation} onchange={handleCheckChange}></lightning-input>
+                        </div>
+                        <div class="slds-col">
+                            <lightning-input type="checkbox" label="Slack通知を有効化" data-key="enableSlack" checked={config.enableSlackNotification} onchange={handleCheckChange}></lightning-input>
+                        </div>
+                    </div>
+                </lightning-accordion-section>
+
+                <!-- Okta設定 -->
+                <lightning-accordion-section name="okta" label="Okta設定">
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-2 slds-p-right_small">
+                            <lightning-input type="url" label="OktaドメインURL" data-key="oktaDomain" value={config.oktaDomain} onchange={handleChange} placeholder="https://your-domain.okta.com"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input type="password" label="Okta APIトークン" data-key="oktaApiToken" onchange={handleChange} placeholder="SSWJxxxxxxxxxx"></lightning-input>
+                        </div>
+                    </div>
+                </lightning-accordion-section>
+
+                <!-- Pay.jp設定 -->
+                <lightning-accordion-section name="payjp" label="Pay.jp（Visa/Mastercard専用）">
+                    <p class="slds-text-body_small slds-m-bottom_small">年会費・寄付金の Visa/Mastercard 決済に使用します。</p>
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-3 slds-p-right_small">
+                            <lightning-combobox label="環境" data-key="payjpMode" value={config.payjpMode} options={modeOptions} onchange={handleChange}></lightning-combobox>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3 slds-p-right_small">
+                            <lightning-input label="公開キー" data-key="payjpPublicKey" value={config.payjpPublicKey} onchange={handleChange} placeholder="pk_test_xxxxxxxx"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3">
+                            <lightning-input type="password" label="シークレットキー" data-key="payjpSecretKey" onchange={handleChange} placeholder="sk_test_xxxxxxxx"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-m-top_small">
+                            <lightning-input type="url" label="口座振替申込書URL" data-key="directDebitFormUrl" value={config.directDebitFormUrl} onchange={handleChange} placeholder="https://example.com/direct-debit-form.pdf"></lightning-input>
+                        </div>
+                    </div>
+                </lightning-accordion-section>
+
+                <!-- Omise設定 -->
+                <lightning-accordion-section name="omise" label="Omise">
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-3 slds-p-right_small">
+                            <lightning-combobox label="環境" data-key="omiseMode" value={config.omiseMode} options={modeOptions} onchange={handleChange}></lightning-combobox>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3 slds-p-right_small">
+                            <lightning-input label="公開キー" data-key="omisePublicKey" value={config.omisePublicKey} onchange={handleChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3">
+                            <lightning-input type="password" label="シークレットキー" data-key="omiseSecretKey" onchange={handleChange}></lightning-input>
+                        </div>
+                    </div>
+                </lightning-accordion-section>
+
+                <!-- Stripe設定 -->
+                <lightning-accordion-section name="stripe" label="Stripe">
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-3 slds-p-right_small">
+                            <lightning-combobox label="環境" data-key="stripeMode" value={config.stripeMode} options={modeOptions} onchange={handleChange}></lightning-combobox>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3 slds-p-right_small">
+                            <lightning-input label="公開キー (pk_)" data-key="stripePublicKey" value={config.stripePublicKey} onchange={handleChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3">
+                            <lightning-input type="password" label="シークレットキー (sk_)" data-key="stripeSecretKey" onchange={handleChange}></lightning-input>
+                        </div>
+                    </div>
+                </lightning-accordion-section>
+
+                <!-- Fincode設定 -->
+                <lightning-accordion-section name="fincode" label="Fincode">
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-4 slds-p-right_small">
+                            <lightning-combobox label="環境" data-key="fincodeMode" value={config.fincodeMode} options={modeOptions} onchange={handleChange}></lightning-combobox>
+                        </div>
+                        <div class="slds-col slds-size_1-of-4 slds-p-right_small">
+                            <lightning-input label="ショップID" data-key="fincodeShopId" value={config.fincodeShopId} onchange={handleChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-4 slds-p-right_small">
+                            <lightning-input label="公開キー" data-key="fincodePublicKey" value={config.fincodePublicKey} onchange={handleChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-4">
+                            <lightning-input type="password" label="シークレットキー" data-key="fincodeSecretKey" onchange={handleChange}></lightning-input>
+                        </div>
+                    </div>
+                </lightning-accordion-section>
+            </lightning-accordion>
+
+            <div class="slds-m-top_medium slds-align_absolute-center">
+                <lightning-button variant="brand" label="設定を保存" onclick={handleSave} disabled={isLoading}></lightning-button>
+            </div>
+        </div>
+    </lightning-card>
+</template>

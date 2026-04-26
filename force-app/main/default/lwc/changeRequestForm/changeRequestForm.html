@@ -1,0 +1,31 @@
+<template>
+    <lightning-card title="各種変更申請" icon-name="utility:edit">
+        <div class="slds-card__body slds-card__body_inner">
+            <template if:true={isSubmitted}>
+                <div class="slds-notify slds-notify_toast slds-theme_success" role="status">
+                    <p>申請を受け付けました。（申請番号: {submittedName}）承認後にメールでご連絡します。</p>
+                </div>
+            </template>
+            <template if:false={isSubmitted}>
+                <div class="slds-form slds-form_stacked">
+                    <lightning-combobox label="申請種別" value={requestType} options={typeOptions} onchange={handleTypeChange} required></lightning-combobox>
+                    <lightning-combobox label="優先度" value={priority} options={priorityOptions} onchange={handlePriorityChange}></lightning-combobox>
+                    <lightning-input type="date" label="実施希望日" value={implementationDate} onchange={handleDateChange}></lightning-input>
+                    <lightning-textarea label="申請内容" value={description} onchange={handleDescChange} required max-length="10000" placeholder="変更内容を具体的にご記入ください。"></lightning-textarea>
+                    <template if:true={hasError}>
+                        <div class="slds-notify slds-notify_toast slds-theme_error"><p>{errorMessage}</p></div>
+                    </template>
+                    <div class="slds-m-top_medium">
+                        <lightning-button label="申請する" variant="brand" onclick={handleSubmit} disabled={isSubmitting}></lightning-button>
+                    </div>
+                </div>
+            </template>
+
+            <!-- 申請履歴 -->
+            <div class="slds-m-top_large">
+                <h3 class="slds-text-heading_small slds-m-bottom_small">申請履歴</h3>
+                <lightning-datatable key-field="Id" data={requests} columns={columns} hide-checkbox-column></lightning-datatable>
+            </div>
+        </div>
+    </lightning-card>
+</template>

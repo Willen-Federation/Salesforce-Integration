@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EmailTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <available>true</available>
+    <encodingKey>ISO-2022-JP</encodingKey>
+    <name>会員登録受付確認</name>
+    <style>none</style>
+    <subject>【会員登録受付】お申し込みありがとうございます</subject>
+    <textOnly>
+{!Receiving_User.LastName} {!Receiving_User.FirstName} 様
+
+会員登録のお申し込みを受け付けました。
+
+審査完了後に改めてご連絡いたします。
+通常3〜5営業日以内にご連絡いたします。
+
+お問い合わせはポータルサイトよりお願いいたします。
+
+――――――――――――――――――――――――――――
+このメールはシステムから自動送信されています。
+    </textOnly>
+    <type>text</type>
+</EmailTemplate>

@@ -1,0 +1,74 @@
+<template>
+    <lightning-card title="支払い手続き" icon-name="standard:payment_gateway">
+        <div class="slds-card__body slds-card__body_inner">
+
+            <!-- 未払い一覧 -->
+            <template if:true={hasUnpaidPayments}>
+                <h3 class="slds-text-heading_small slds-m-bottom_small">未払い一覧</h3>
+                <lightning-datatable
+                    key-field="Id"
+                    data={unpaidPayments}
+                    columns={columns}
+                    onrowaction={handleRowAction}
+                    hide-checkbox-column>
+                </lightning-datatable>
+            </template>
+
+            <template if:false={hasUnpaidPayments}>
+                <div class="slds-illustration slds-illustration_small slds-m-vertical_large">
+                    <lightning-icon icon-name="utility:check" size="large" variant="success"></lightning-icon>
+                    <p class="slds-text-body_regular slds-m-top_small">未払いの支払いはありません。</p>
+                </div>
+            </template>
+
+            <!-- 支払い確認モーダル -->
+            <template if:true={showModal}>
+                <section role="dialog" class="slds-modal slds-fade-in-open">
+                    <div class="slds-modal__container">
+                        <header class="slds-modal__header">
+                            <h2 class="slds-text-heading_medium">支払い手続き確認</h2>
+                        </header>
+                        <div class="slds-modal__content slds-p-around_medium">
+                            <p>以下の内容でお支払いを行います。</p>
+                            <dl class="slds-dl_horizontal slds-m-top_small">
+                                <dt class="slds-dl_horizontal__label">支払い種別</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedPayment.PaymentType__c}</dd>
+                                <dt class="slds-dl_horizontal__label">金額</dt>
+                                <dd class="slds-dl_horizontal__detail">{formattedAmount}</dd>
+                                <dt class="slds-dl_horizontal__label">支払期限</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedPayment.DueDate__c}</dd>
+                            </dl>
+                            <lightning-combobox
+                                label="支払方法"
+                                value={paymentMethod}
+                                options={paymentMethodOptions}
+                                onchange={handleMethodChange}
+                                class="slds-m-top_medium"
+                                required>
+                            </lightning-combobox>
+                        </div>
+                        <footer class="slds-modal__footer">
+                            <lightning-button label="キャンセル" onclick={closeModal}></lightning-button>
+                            <lightning-button label="支払いを確定" variant="brand" onclick={handleConfirmPayment} disabled={isProcessing}></lightning-button>
+                        </footer>
+                    </div>
+                </section>
+                <div class="slds-backdrop slds-backdrop_open"></div>
+            </template>
+
+            <!-- 領収書発行ボタン -->
+            <template if:true={hasPaidPayments}>
+                <div class="slds-m-top_large">
+                    <h3 class="slds-text-heading_small slds-m-bottom_small">支払い済み一覧</h3>
+                    <lightning-datatable
+                        key-field="Id"
+                        data={paidPayments}
+                        columns={paidColumns}
+                        onrowaction={handleReceiptAction}
+                        hide-checkbox-column>
+                    </lightning-datatable>
+                </div>
+            </template>
+        </div>
+    </lightning-card>
+</template>

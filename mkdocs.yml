@@ -1,0 +1,93 @@
+site_name: "会員ポータル システムドキュメント"
+site_description: "Willen 会員ポータル — Salesforce SFDX プロジェクト 設計・運用ドキュメント"
+site_author: "Willen Engineering Team"
+docs_dir: docs
+exclude_docs: |
+  DEPLOY_GUIDE.md
+  OKTA_SAML_SETUP.md
+
+theme:
+  name: material
+  language: ja
+  logo: material/account-group
+  favicon: material/account-group
+  icon:
+    logo: fontawesome/solid/users
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/weather-sunny
+        name: ダークモードに切り替え
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/weather-night
+        name: ライトモードに切り替え
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+
+plugins:
+  - search:
+      lang: ja
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - ホーム: index.md
+  - はじめに:
+      - 前提条件: getting-started/prerequisites.md
+      - インストール: getting-started/installation.md
+      - デプロイ後設定: getting-started/post-deploy.md
+  - 機能ガイド:
+      - 会員管理: features/member-management.md
+      - 支払い・決済: features/payments.md
+      - 総会フォーム: features/general-meeting.md
+      - フォームビルダー: features/form-builder.md
+      - チームWiki: features/team-wiki.md
+      - 人事変更予約: features/personnel-change.md
+      - 個別通知: features/notifications.md
+      - サポート問い合わせ: features/support-inquiry.md
+      - 活動・イベント: features/activity-events.md
+  - アーキテクチャ:
+      - データモデル: architecture/data-model.md
+      - セキュリティモデル: architecture/security.md
+      - Apex クラス: architecture/apex-classes.md
+      - LWC コンポーネント: architecture/lwc-components.md
+      - 外部連携: architecture/integrations.md
+  - 管理者ガイド:
+      - ポータル設定画面: administration/portal-config.md
+      - スケジュールジョブ: administration/scheduled-jobs.md
+      - 権限セット: administration/permission-sets.md
+  - リファレンス:
+      - 差し込みフィールド一覧: reference/placeholders.md
+      - 変更履歴: reference/changelog.md

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EmailTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <available>true</available>
+    <encodingKey>ISO-2022-JP</encodingKey>
+    <name>変更申請承認結果</name>
+    <style>none</style>
+    <subject>【申請結果】変更申請 {!ChangeRequest__c.Name} が {!ChangeRequest__c.ApprovalStatus__c} されました</subject>
+    <textOnly>
+{!ChangeRequest__c.RequesterMember__r.LastName__c} {!ChangeRequest__c.RequesterMember__r.FirstName__c} 様
+
+変更申請の審査が完了しました。
+
+■ 申請番号    : {!ChangeRequest__c.Name}
+■ 申請種別    : {!ChangeRequest__c.RequestType__c}
+■ 結果        : {!ChangeRequest__c.ApprovalStatus__c}
+■ 承認日      : {!ChangeRequest__c.ApprovalDate__c}
+■ コメント    : {!ChangeRequest__c.ApprovalComment__c}
+
+詳細はポータルサイトの申請履歴よりご確認ください。
+
+──────────────────────────────────
+※本メールはシステムより自動送信されております。
+    </textOnly>
+    <type>text</type>
+</EmailTemplate>

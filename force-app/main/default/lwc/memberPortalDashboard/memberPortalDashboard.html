@@ -1,0 +1,113 @@
+<template>
+    <div class="portal-dashboard">
+        <div class="slds-page-header slds-page-header_joined slds-m-bottom_medium">
+            <div class="slds-page-header__row">
+                <div class="slds-page-header__col-title">
+                    <div class="slds-media">
+                        <div class="slds-media__figure slds-media__figure_fixed-width">
+                            <lightning-icon icon-name="standard:groups" size="large"></lightning-icon>
+                        </div>
+                        <div class="slds-media__body">
+                            <h1 class="slds-page-header__title">{greeting}</h1>
+                            <template if:true={memberName}>
+                                <p class="slds-text-body_regular">{memberName} 様</p>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="読み込み中..." size="medium"></lightning-spinner>
+        </template>
+
+        <template if:false={isLoading}>
+            <!-- 会員ステータスカード -->
+            <div class="slds-grid slds-gutters slds-wrap slds-m-bottom_medium">
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-4">
+                    <div class="slds-card status-card">
+                        <div class="slds-card__body slds-card__body_inner slds-text-align_center">
+                            <lightning-icon icon-name="standard:contact" size="large" class="slds-m-bottom_small"></lightning-icon>
+                            <p class="slds-text-heading_small">会員ステータス</p>
+                            <lightning-badge label={memberStatus} class="status-badge"></lightning-badge>
+                        </div>
+                    </div>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-4">
+                    <div class="slds-card status-card">
+                        <div class="slds-card__body slds-card__body_inner slds-text-align_center">
+                            <lightning-icon icon-name="standard:payment_gateway" size="large" class="slds-m-bottom_small"></lightning-icon>
+                            <p class="slds-text-heading_small">未払い件数</p>
+                            <p class="slds-text-heading_large">{unpaidCount}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-4">
+                    <div class="slds-card status-card">
+                        <div class="slds-card__body slds-card__body_inner slds-text-align_center">
+                            <lightning-icon icon-name="standard:task" size="large" class="slds-m-bottom_small"></lightning-icon>
+                            <p class="slds-text-heading_small">申請中件数</p>
+                            <p class="slds-text-heading_large">{pendingRequestCount}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-4">
+                    <div class="slds-card status-card">
+                        <div class="slds-card__body slds-card__body_inner slds-text-align_center">
+                            <lightning-icon icon-name="standard:case_comment" size="large" class="slds-m-bottom_small"></lightning-icon>
+                            <p class="slds-text-heading_small">問い合わせ中</p>
+                            <p class="slds-text-heading_large">{openInquiryCount}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- クイックアクション -->
+            <div class="slds-card slds-m-bottom_medium">
+                <div class="slds-card__header">
+                    <h2 class="slds-card__header-title">クイックアクション</h2>
+                </div>
+                <div class="slds-card__body slds-card__body_inner">
+                    <div class="slds-grid slds-gutters slds-wrap">
+                        <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-4 slds-m-bottom_small">
+                            <lightning-button label="支払い手続き" icon-name="utility:money" variant="brand" onclick={handlePayment} class="slds-size_1-of-1"></lightning-button>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-4 slds-m-bottom_small">
+                            <lightning-button label="寄付をする" icon-name="utility:heart" onclick={handleDonation} class="slds-size_1-of-1"></lightning-button>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-4 slds-m-bottom_small">
+                            <lightning-button label="活動を登録" icon-name="utility:record_create" onclick={handleActivity} class="slds-size_1-of-1"></lightning-button>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-4 slds-m-bottom_small">
+                            <lightning-button label="変更を申請" icon-name="utility:edit" onclick={handleChangeRequest} class="slds-size_1-of-1"></lightning-button>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-4 slds-m-bottom_small">
+                            <lightning-button label="お問い合わせ" icon-name="utility:question_mark" onclick={handleSupport} class="slds-size_1-of-1"></lightning-button>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-medium-size_1-of-4 slds-m-bottom_small">
+                            <lightning-button label="組織図を見る" icon-name="utility:hierarchy" onclick={handleOrgChart} class="slds-size_1-of-1"></lightning-button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最近の通知 -->
+            <template if:true={hasNotifications}>
+                <div class="slds-card">
+                    <div class="slds-card__header">
+                        <h2 class="slds-card__header-title">最近のお知らせ</h2>
+                    </div>
+                    <div class="slds-card__body">
+                        <template for:each={notifications} for:item="notif">
+                            <div key={notif.Id} class="slds-box slds-m-around_x-small notification-item">
+                                <p class="slds-text-heading_small">{notif.Name}</p>
+                                <lightning-formatted-rich-text value={notif.Content__c}></lightning-formatted-rich-text>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </template>
+    </div>
+</template>

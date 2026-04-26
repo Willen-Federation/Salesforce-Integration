@@ -1,0 +1,93 @@
+<template>
+    <div class="registration-form">
+        <lightning-card title="正会員登録申請" icon-name="standard:contact">
+            <div class="slds-card__body slds-card__body_inner">
+                <template if:true={isSubmitted}>
+                    <div class="slds-notify slds-notify_toast slds-theme_success" role="status">
+                        <lightning-icon icon-name="utility:success" size="small" variant="inverse" class="slds-m-right_small"></lightning-icon>
+                        <div>
+                            <h2>お申し込みを受け付けました</h2>
+                            <p>入力されたメールアドレスに確認メールをお送りしました。審査完了後にご連絡いたします。</p>
+                        </div>
+                    </div>
+                </template>
+
+                <template if:false={isSubmitted}>
+                    <lightning-progress-bar value={progressValue} size="large" class="slds-m-bottom_medium"></lightning-progress-bar>
+
+                    <!-- Step 1: 基本情報 -->
+                    <template if:true={isStep1}>
+                        <div class="slds-section slds-is-open">
+                            <h3 class="slds-section__title">基本情報</h3>
+                            <div class="slds-form slds-form_stacked slds-m-top_medium">
+                                <div class="slds-grid slds-gutters">
+                                    <div class="slds-col slds-size_1-of-2">
+                                        <lightning-input label="姓" value={formData.lastName} onchange={handleChange} data-field="lastName" required></lightning-input>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-2">
+                                        <lightning-input label="名" value={formData.firstName} onchange={handleChange} data-field="firstName" required></lightning-input>
+                                    </div>
+                                </div>
+                                <lightning-input type="email" label="メールアドレス" value={formData.email} onchange={handleChange} data-field="email" required></lightning-input>
+                                <lightning-input type="tel" label="電話番号" value={formData.phone} onchange={handleChange} data-field="phone"></lightning-input>
+                                <lightning-combobox label="会員種別" value={formData.memberType} options={memberTypeOptions} onchange={handleChange} data-field="memberType" required></lightning-combobox>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Step 2: 所属情報 -->
+                    <template if:true={isStep2}>
+                        <div class="slds-section slds-is-open">
+                            <h3 class="slds-section__title">所属情報</h3>
+                            <div class="slds-form slds-form_stacked slds-m-top_medium">
+                                <lightning-input label="所属組織名" value={formData.organization} onchange={handleChange} data-field="organization"></lightning-input>
+                                <lightning-input label="部署" value={formData.department} onchange={handleChange} data-field="department"></lightning-input>
+                                <lightning-input label="役職" value={formData.position} onchange={handleChange} data-field="position"></lightning-input>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Step 3: 確認 -->
+                    <template if:true={isStep3}>
+                        <div class="slds-section slds-is-open">
+                            <h3 class="slds-section__title">入力内容の確認</h3>
+                            <dl class="slds-dl_horizontal slds-m-top_medium">
+                                <dt class="slds-dl_horizontal__label">氏名</dt>
+                                <dd class="slds-dl_horizontal__detail">{formData.lastName} {formData.firstName}</dd>
+                                <dt class="slds-dl_horizontal__label">メールアドレス</dt>
+                                <dd class="slds-dl_horizontal__detail">{formData.email}</dd>
+                                <dt class="slds-dl_horizontal__label">電話番号</dt>
+                                <dd class="slds-dl_horizontal__detail">{formData.phone}</dd>
+                                <dt class="slds-dl_horizontal__label">会員種別</dt>
+                                <dd class="slds-dl_horizontal__detail">{formData.memberType}</dd>
+                                <dt class="slds-dl_horizontal__label">所属組織</dt>
+                                <dd class="slds-dl_horizontal__detail">{formData.organization}</dd>
+                                <dt class="slds-dl_horizontal__label">部署</dt>
+                                <dd class="slds-dl_horizontal__detail">{formData.department}</dd>
+                                <dt class="slds-dl_horizontal__label">役職</dt>
+                                <dd class="slds-dl_horizontal__detail">{formData.position}</dd>
+                            </dl>
+                            <lightning-input type="checkbox" label="個人情報の取り扱いに同意する" checked={agreedToTerms} onchange={handleTermsChange} class="slds-m-top_medium" required></lightning-input>
+                        </div>
+                    </template>
+
+                    <template if:true={hasError}>
+                        <div class="slds-notify slds-notify_toast slds-theme_error" role="alert">
+                            <p>{errorMessage}</p>
+                        </div>
+                    </template>
+
+                    <div class="slds-m-top_medium slds-grid slds-grid_align-spread">
+                        <lightning-button label="戻る" onclick={handleBack} disabled={isStep1}></lightning-button>
+                        <template if:false={isStep3}>
+                            <lightning-button label="次へ" variant="brand" onclick={handleNext}></lightning-button>
+                        </template>
+                        <template if:true={isStep3}>
+                            <lightning-button label="申請する" variant="brand" onclick={handleSubmit} disabled={isSubmitting}></lightning-button>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </lightning-card>
+    </div>
+</template>

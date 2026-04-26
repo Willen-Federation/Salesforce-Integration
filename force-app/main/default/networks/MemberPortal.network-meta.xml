@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Network xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>会員ポータル</label>
+    <networkPageOverrides>
+        <changePasswordPageOverrideSetting>Designer</changePasswordPageOverrideSetting>
+        <forgotPasswordPageOverrideSetting>Designer</forgotPasswordPageOverrideSetting>
+        <homePageOverrideSetting>Designer</homePageOverrideSetting>
+        <loginPageOverrideSetting>Designer</loginPageOverrideSetting>
+        <selfRegProfileForExternalUsers>MemberPortalUser</selfRegProfileForExternalUsers>
+    </networkPageOverrides>
+    <selfRegistration>true</selfRegistration>
+    <selfRegProfile>External Apps - Salesforce Identity User</selfRegProfile>
+    <status>Live</status>
+    <tabs>
+        <defaultTab>home</defaultTab>
+        <tab>home</tab>
+        <tab>payment</tab>
+        <tab>donation</tab>
+        <tab>activity</tab>
+        <tab>change_request</tab>
+        <tab>org_chart</tab>
+        <tab>support</tab>
+    </tabs>
+    <enableGuestChatter>false</enableGuestChatter>
+    <allowInternalUserLogin>true</allowInternalUserLogin>
+    <disableReputationRecordConversations>false</disableReputationRecordConversations>
+    <enableTopicAssignmentRules>false</enableTopicAssignmentRules>
+    <guestAccessEnabled>false</guestAccessEnabled>
+    <loginPageVariant>LoginPageVariant1</loginPageVariant>
+    <maxFileSizeKb>5120</maxFileSizeKb>
+    <memberVisibility>LoginUser</memberVisibility>
+    <picassoSite>MemberPortal</picassoSite>
+    <sendWelcomeEmail>true</sendWelcomeEmail>
+    <siteAsContainerEnabled>true</siteAsContainerEnabled>
+    <urlPathPrefix>member-portal</urlPathPrefix>
+</Network>

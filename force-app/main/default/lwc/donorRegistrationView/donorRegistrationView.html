@@ -1,0 +1,117 @@
+<template>
+    <lightning-card title="寄付者登録情報" icon-name="utility:heart">
+        <div class="slds-m-around_medium">
+
+            <!-- Filters -->
+            <div class="slds-grid slds-wrap slds-m-bottom_medium">
+                <div class="slds-col slds-size_1-of-4 slds-p-right_small">
+                    <lightning-input type="date" label="開始日" value={filterFrom} onchange={handleFilterFrom}></lightning-input>
+                </div>
+                <div class="slds-col slds-size_1-of-4 slds-p-right_small">
+                    <lightning-input type="date" label="終了日" value={filterTo} onchange={handleFilterTo}></lightning-input>
+                </div>
+                <div class="slds-col slds-size_1-of-4 slds-p-right_small">
+                    <lightning-combobox
+                        label="決済ステータス"
+                        value={filterStatus}
+                        options={statusOptions}
+                        onchange={handleFilterStatus}>
+                    </lightning-combobox>
+                </div>
+                <div class="slds-col slds-size_1-of-4 slds-align-bottom">
+                    <lightning-button variant="brand" label="検索" onclick={handleSearch} class="slds-m-bottom_xx-small"></lightning-button>
+                </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <template if:true={hasDonations}>
+                <div class="slds-grid slds-wrap slds-m-bottom_medium">
+                    <div class="slds-col slds-size_1-of-3 slds-p-right_small">
+                        <div class="slds-box slds-theme_shade slds-align_absolute-center">
+                            <p class="slds-text-body_small slds-text-color_weak">総寄付件数</p>
+                            <p class="slds-text-heading_medium">{totalCount} 件</p>
+                        </div>
+                    </div>
+                    <div class="slds-col slds-size_1-of-3 slds-p-right_small">
+                        <div class="slds-box slds-theme_shade slds-align_absolute-center">
+                            <p class="slds-text-body_small slds-text-color_weak">総寄付金額</p>
+                            <p class="slds-text-heading_medium">¥{formattedTotal}</p>
+                        </div>
+                    </div>
+                    <div class="slds-col slds-size_1-of-3">
+                        <div class="slds-box slds-theme_shade slds-align_absolute-center">
+                            <p class="slds-text-body_small slds-text-color_weak">税控除証明書 要件数</p>
+                            <p class="slds-text-heading_medium">{taxCertCount} 件</p>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Table -->
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="読み込み中"></lightning-spinner>
+            </template>
+
+            <template if:false={isLoading}>
+                <lightning-datatable
+                    key-field="Id"
+                    data={donations}
+                    columns={columns}
+                    hide-checkbox-column
+                    sorted-by={sortedBy}
+                    sorted-direction={sortedDirection}
+                    onsort={handleSort}
+                    default-sort-direction="desc">
+                </lightning-datatable>
+
+                <template if:false={hasDonations}>
+                    <div class="slds-align_absolute-center slds-p-around_large">
+                        <p class="slds-text-body_regular slds-text-color_weak">該当する寄付データがありません。</p>
+                    </div>
+                </template>
+            </template>
+
+            <!-- Detail Modal -->
+            <template if:true={selectedDonor}>
+                <section role="dialog" class="slds-modal slds-fade-in-open">
+                    <div class="slds-modal__container">
+                        <header class="slds-modal__header">
+                            <h2 class="slds-modal__title">寄付者詳細 - {selectedDonor.Name}</h2>
+                            <lightning-button-icon icon-name="utility:close" onclick={handleCloseDetail} alternative-text="閉じる" class="slds-modal__close" variant="bare-inverse"></lightning-button-icon>
+                        </header>
+                        <div class="slds-modal__content slds-p-around_medium">
+                            <dl class="slds-dl_horizontal">
+                                <dt class="slds-dl_horizontal__label">寄付番号</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedDonor.Name}</dd>
+                                <dt class="slds-dl_horizontal__label">寄付者名</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedDonor.DonorName__c}</dd>
+                                <dt class="slds-dl_horizontal__label">メールアドレス</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedDonor.DonorEmail__c}</dd>
+                                <dt class="slds-dl_horizontal__label">金額</dt>
+                                <dd class="slds-dl_horizontal__detail">¥{selectedDonor.Amount__c}</dd>
+                                <dt class="slds-dl_horizontal__label">決済ステータス</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedDonor.PaymentStatus__c}</dd>
+                                <dt class="slds-dl_horizontal__label">決済プロバイダー</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedDonor.PaymentProvider__c}</dd>
+                                <dt class="slds-dl_horizontal__label">匿名</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedDonor.isAnonymousLabel}</dd>
+                                <dt class="slds-dl_horizontal__label">税控除証明書</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedDonor.taxCertLabel}</dd>
+                                <dt class="slds-dl_horizontal__label">領収書番号</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedDonor.ReceiptNumber__c}</dd>
+                                <dt class="slds-dl_horizontal__label">寄付日</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedDonor.DonationDate__c}</dd>
+                                <dt class="slds-dl_horizontal__label">備考</dt>
+                                <dd class="slds-dl_horizontal__detail">{selectedDonor.Notes__c}</dd>
+                            </dl>
+                        </div>
+                        <footer class="slds-modal__footer">
+                            <lightning-button label="閉じる" onclick={handleCloseDetail}></lightning-button>
+                        </footer>
+                    </div>
+                </section>
+                <div class="slds-backdrop slds-backdrop_open"></div>
+            </template>
+        </div>
+    </lightning-card>
+</template>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SharingRules xmlns="http://soap.sforce.com/2006/04/metadata">
+
+    <!-- 全会員公開のWikiを全内部ユーザーへ読み取り共有 -->
+    <sharingCriteriaRules>
+        <fullName>ShareAllMemberWikiToAllUsers</fullName>
+        <accessLevel>Read</accessLevel>
+        <label>全会員WikiをAllInternalUsersへ共有</label>
+        <sharedTo>
+            <allInternalUsers>true</allInternalUsers>
+        </sharedTo>
+        <criteriaItems>
+            <field>AccessLevel__c</field>
+            <operation>equals</operation>
+            <value>全会員</value>
+        </criteriaItems>
+    </sharingCriteriaRules>
+
+    <!-- 外部公開WikiをExperience Cloudゲストも含む全ユーザーへ読み取り共有 -->
+    <sharingCriteriaRules>
+        <fullName>SharePublicWikiToAllUsers</fullName>
+        <accessLevel>Read</accessLevel>
+        <label>外部公開WikiをAllInternalUsersへ共有</label>
+        <sharedTo>
+            <allInternalUsers>true</allInternalUsers>
+        </sharedTo>
+        <criteriaItems>
+            <field>AccessLevel__c</field>
+            <operation>equals</operation>
+            <value>外部公開</value>
+        </criteriaItems>
+    </sharingCriteriaRules>
+
+    <!-- 管理者グループにはEdit権限を付与 -->
+    <sharingCriteriaRules>
+        <fullName>ShareAllWikiToAdmins</fullName>
+        <accessLevel>Edit</accessLevel>
+        <label>全WikiをMemberPortalAdminsへ編集共有</label>
+        <sharedTo>
+            <group>MemberPortalAdmins</group>
+        </sharedTo>
+        <criteriaItems>
+            <field>IsActive__c</field>
+            <operation>equals</operation>
+            <value>True</value>
+        </criteriaItems>
+    </sharingCriteriaRules>
+
+</SharingRules>

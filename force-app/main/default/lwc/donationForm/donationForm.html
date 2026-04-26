@@ -1,0 +1,90 @@
+<template>
+    <lightning-card title="寄付申し込み" icon-name="utility:heart">
+        <div class="slds-card__body slds-card__body_inner">
+            <template if:true={isSubmitted}>
+                <div class="slds-notify slds-notify_toast slds-theme_success" role="status">
+                    <p class="slds-text-heading_small">ご寄付ありがとうございます。</p>
+                    <p>受付番号: {submittedDonationName} — 確認メールをお送りしました。</p>
+                </div>
+            </template>
+            <template if:false={isSubmitted}>
+                <div class="slds-form slds-form_stacked">
+                    <lightning-input
+                        type="number"
+                        label="寄付金額（円）"
+                        value={amount}
+                        onchange={handleAmountChange}
+                        min="1000"
+                        step="1000"
+                        required>
+                    </lightning-input>
+
+                    <!-- 定額ボタン -->
+                    <div class="slds-grid slds-gutters slds-m-vertical_small">
+                        <template for:each={presetAmounts} for:item="preset">
+                            <div key={preset} class="slds-col">
+                                <lightning-button label={preset.label} data-amount={preset.value} onclick={handlePreset} variant="neutral" class="slds-size_1-of-1"></lightning-button>
+                            </div>
+                        </template>
+                    </div>
+
+                    <lightning-combobox
+                        label="寄付用途"
+                        value={purpose}
+                        options={purposeOptions}
+                        onchange={handlePurposeChange}
+                        required>
+                    </lightning-combobox>
+
+                    <lightning-combobox
+                        label="支払方法"
+                        value={paymentMethod}
+                        options={paymentMethodOptions}
+                        onchange={handleMethodChange}
+                        required>
+                    </lightning-combobox>
+
+                    <lightning-input
+                        type="checkbox"
+                        label="匿名で寄付する"
+                        checked={isAnonymous}
+                        onchange={handleAnonymousChange}>
+                    </lightning-input>
+
+                    <template if:false={isAnonymous}>
+                        <lightning-input label="お名前" value={donorName} onchange={handleDonorNameChange}></lightning-input>
+                        <lightning-input type="email" label="メールアドレス" value={donorEmail} onchange={handleDonorEmailChange}></lightning-input>
+                    </template>
+
+                    <lightning-input
+                        type="checkbox"
+                        label="税控除証明書を希望する"
+                        checked={taxCertRequired}
+                        onchange={handleTaxCertChange}>
+                    </lightning-input>
+
+                    <lightning-textarea
+                        label="メッセージ（任意）"
+                        value={message}
+                        onchange={handleMessageChange}
+                        max-length="500">
+                    </lightning-textarea>
+
+                    <template if:true={hasError}>
+                        <div class="slds-notify slds-notify_toast slds-theme_error"><p>{errorMessage}</p></div>
+                    </template>
+
+                    <div class="slds-m-top_medium">
+                        <lightning-button
+                            label="寄付を申し込む"
+                            variant="brand"
+                            onclick={handleSubmit}
+                            disabled={isSubmitting}
+                            class="slds-size_1-of-1">
+                        </lightning-button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </lightning-card>
+</template>
