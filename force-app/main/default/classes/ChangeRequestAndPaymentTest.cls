@@ -70,7 +70,7 @@ private class ChangeRequestAndPaymentTest {
         Payment__c p = new Payment__c(
             Member__c = m.Id, PaymentType__c = '年会費', Amount__c = 10000,
             DueDate__c = Date.today(), PaymentStatus__c = '支払済み',
-            PaymentDate__c = Date.today(), PaymentMethod__c = 'クレジットカード',
+            PaymentDate__c = Date.today(), PaymentMethod__c = 'クレジットカード（Visa/Mastercard）',
             FiscalYear__c = Date.today().year(), ReceiptIssued__c = true,
             ReceiptIssuedDate__c = Date.today()
         );
