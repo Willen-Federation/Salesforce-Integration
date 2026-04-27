@@ -6,6 +6,7 @@ import toggleRecurringPlan  from '@salesforce/apex/RecurringPaymentScheduler.tog
 import deleteRecurringPlan  from '@salesforce/apex/RecurringPaymentScheduler.deleteRecurringPlan';
 import generateDuePayments  from '@salesforce/apex/RecurringPaymentScheduler.generateDuePayments';
 import searchMembers        from '@salesforce/apex/PaymentController.searchMembers';
+import getSchedulerStatus   from '@salesforce/apex/PortalSchedulerController.getSchedulerStatus';
 
 const PAYMENT_TYPE_OPTIONS = [
     { label: '年会費',         value: '年会費' },
@@ -34,10 +35,11 @@ const EMPTY_FORM = {
 };
 
 export default class RecurringPaymentAdmin extends LightningElement {
-    @track plans          = [];
-    @track isLoading      = false;
-    @track errorMessage   = '';
-    @track successMessage = '';
+    @track plans            = [];
+    @track isLoading        = false;
+    @track errorMessage     = '';
+    @track successMessage   = '';
+    @track schedulerEnabled = true; // デフォルト true で表示をブロックしない
 
     @track showModal      = false;
     @track isSaving       = false;
@@ -55,6 +57,16 @@ export default class RecurringPaymentAdmin extends LightningElement {
 
     connectedCallback() {
         this.loadPlans();
+        this.checkScheduler();
+    }
+
+    async checkScheduler() {
+        try {
+            const status = await getSchedulerStatus();
+            this.schedulerEnabled = status.isScheduled === true;
+        } catch (e) {
+            this.schedulerEnabled = true; // エラー時は警告を非表示
+        }
     }
 
     async loadPlans() {

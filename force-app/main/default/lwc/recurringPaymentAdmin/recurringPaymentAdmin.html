@@ -18,6 +18,14 @@
             </lightning-button-group>
         </div>
         <div class="slds-card__body slds-card__body_inner">
+            <template if:false={schedulerEnabled}>
+                <div class="slds-notify slds-notify_alert slds-alert_warning slds-m-bottom_small" role="alert">
+                    <lightning-icon icon-name="utility:warning" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                    <strong>スケジューラーが無効です。</strong>
+                    定期支払いの請求が自動生成されません。
+                    「ポータル設定」の「定期支払いスケジューラー」セクションから有効化してください。
+                </div>
+            </template>
 
             <template if:true={isLoading}>
                 <lightning-spinner alternative-text="読み込み中" size="medium"></lightning-spinner>
