@@ -1,9 +1,9 @@
 import { LightningElement, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import searchMembers             from '@salesforce/apex/PaymentController.searchMembers';
-import getActivePaymentMethods   from '@salesforce/apex/PaymentController.getActivePaymentMethods';
-import getPlatformFeeConfig      from '@salesforce/apex/PaymentController.getPlatformFeeConfig';
+import searchMembers                 from '@salesforce/apex/PaymentController.searchMembers';
+import getActivePaymentMethods       from '@salesforce/apex/PaymentController.getActivePaymentMethods';
 import createPaymentWithNotification from '@salesforce/apex/PaymentController.createPaymentWithNotification';
+import calculateCreationFees         from '@salesforce/apex/PaymentFeeRuleController.calculateCreationFees';
 
 const PAYMENT_TYPE_OPTIONS = [
     { label: '年会費',           value: '年会費' },
@@ -38,30 +38,17 @@ export default class InvoiceCreationAdmin extends LightningElement {
     @track successMessage    = '';
     @track errorMessage      = '';
 
-    // 手数料設定
-    _platformFeeEnabled = false;
-    _platformFeeRate    = 0;
-    _platformFeeLabel   = 'プラットフォーム利用手数料';
+    // 手数料計算結果（calculateCreationFees の結果）
+    @track _feeResult = null;
 
     paymentTypeOptions   = PAYMENT_TYPE_OPTIONS;
     notificationOptions  = NOTIFICATION_OPTIONS;
 
-    _searchTimer = null;
+    _searchTimer    = null;
+    _feeCalcTimer   = null;
 
     connectedCallback() {
         this.loadPaymentMethods();
-        this.loadPlatformFeeConfig();
-    }
-
-    async loadPlatformFeeConfig() {
-        try {
-            const cfg = await getPlatformFeeConfig();
-            this._platformFeeEnabled = cfg.enabled;
-            this._platformFeeRate    = cfg.rate || 0;
-            this._platformFeeLabel   = cfg.label || 'プラットフォーム利用手数料';
-        } catch (e) {
-            // 手数料なしで続行
-        }
     }
 
     async loadPaymentMethods() {
@@ -69,21 +56,25 @@ export default class InvoiceCreationAdmin extends LightningElement {
             const methods = await getActivePaymentMethods();
             this.paymentMethodList = methods.map(m => ({
                 ...m,
-                checked:        false,
-                feeDescription: this._buildFeeDesc(m),
+                checked: false,
             }));
         } catch (e) {
             this.showToast('警告', '決済手段の読み込みに失敗しました。', 'warning');
         }
     }
 
-    _buildFeeDesc(method) {
-        if (method.feeType === 'percent' && method.feeValue > 0) {
-            return `手数料 ${method.feeValue}%`;
-        } else if (method.feeType === 'fixed' && method.feeValue > 0) {
-            return `手数料 ¥${method.feeValue.toLocaleString('ja-JP')}`;
+    async _recalculateFees() {
+        const base = this.form.baseAmount;
+        const type = this.form.paymentType;
+        if (!base || base <= 0) {
+            this._feeResult = null;
+            return;
         }
-        return '手数料なし';
+        try {
+            this._feeResult = await calculateCreationFees({ paymentCategory: type, baseAmount: base });
+        } catch (e) {
+            this._feeResult = null;
+        }
     }
 
     // ----------------------------------------------------------------
@@ -136,11 +127,16 @@ export default class InvoiceCreationAdmin extends LightningElement {
     handleFormChange(event) {
         const field = event.target.dataset.field || event.target.name;
         this.form = { ...this.form, [field]: event.detail.value };
+        if (field === 'paymentType') {
+            this._recalculateFees();
+        }
     }
 
     handleAmountChange(event) {
         const v = parseFloat(event.target.value);
         this.form = { ...this.form, baseAmount: isNaN(v) ? null : v };
+        clearTimeout(this._feeCalcTimer);
+        this._feeCalcTimer = setTimeout(() => this._recalculateFees(), 400);
     }
 
     handleMethodToggle(event) {
@@ -157,36 +153,18 @@ export default class InvoiceCreationAdmin extends LightningElement {
     // 金額計算
     // ----------------------------------------------------------------
 
-    get platformFeeLabel() { return this._platformFeeLabel; }
-
     get platformFeeAmount() {
-        if (!this._platformFeeEnabled || !this.form.baseAmount || this._platformFeeRate <= 0) return 0;
-        return Math.round(this.form.baseAmount * this._platformFeeRate / 100);
+        return this._feeResult?.totalFeeAmount ?? 0;
     }
 
     get hasPlatformFee() { return this.platformFeeAmount > 0; }
 
-    get selectedMethodFee() {
-        // 複数手段選択時は最大手数料を表示（参考値）
-        const base = this.form.baseAmount || 0;
-        let maxFee = 0;
-        for (const m of this.paymentMethodList) {
-            if (!m.checked) continue;
-            let fee = 0;
-            if (m.feeType === 'percent') {
-                fee = Math.round(base * m.feeValue / 100);
-            } else if (m.feeType === 'fixed') {
-                fee = m.feeValue;
-            }
-            if (fee > maxFee) maxFee = fee;
-        }
-        return maxFee;
+    get platformFeeBreakdown() {
+        return this._feeResult?.breakdown ?? [];
     }
 
-    get hasMethodFee() { return this.selectedMethodFee > 0; }
-
     get totalAmount() {
-        return (this.form.baseAmount || 0) + this.platformFeeAmount + this.selectedMethodFee;
+        return (this.form.baseAmount || 0) + this.platformFeeAmount;
     }
 
     _formatYen(val) {
@@ -197,7 +175,6 @@ export default class InvoiceCreationAdmin extends LightningElement {
 
     get formattedBaseAmount()  { return this._formatYen(this.form.baseAmount); }
     get formattedPlatformFee() { return this._formatYen(this.platformFeeAmount); }
-    get formattedMethodFee()   { return this._formatYen(this.selectedMethodFee); }
     get formattedTotalAmount() { return this._formatYen(this.totalAmount); }
 
     // ----------------------------------------------------------------
@@ -258,6 +235,7 @@ export default class InvoiceCreationAdmin extends LightningElement {
             notificationChannels: 'email',
         };
         this.paymentMethodList = this.paymentMethodList.map(m => ({ ...m, checked: false }));
+        this._feeResult = null;
     }
 
     showToast(title, message, variant) {

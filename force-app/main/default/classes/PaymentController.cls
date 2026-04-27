@@ -24,7 +24,6 @@ public with sharing class PaymentController {
     public static List<Map<String, Object>> getActivePaymentMethods() {
         PortalConfiguration__c config = PortalConfiguration__c.getInstance();
 
-        // どのプロバイダーが設定済みか判定
         Set<String> enabledProviders = new Set<String>();
         if (String.isNotBlank(config.PayjpPublicKey__c) && String.isNotBlank(config.PayjpSecretKey__c)) {
             enabledProviders.add('Pay.jp');
@@ -38,7 +37,7 @@ public with sharing class PaymentController {
 
         List<PaymentMethodConfig__mdt> allMethods = [
             SELECT MasterLabel, MethodKey__c, ProviderName__c, DisplayName__c,
-                   FeeType__c, FeeValue__c, IsEnabled__c, RequiresGateway__c, SortOrder__c
+                   IsEnabled__c, RequiresGateway__c, SortOrder__c
             FROM PaymentMethodConfig__mdt
             WHERE IsEnabled__c = true
             ORDER BY SortOrder__c ASC NULLS LAST
@@ -46,16 +45,13 @@ public with sharing class PaymentController {
 
         List<Map<String, Object>> result = new List<Map<String, Object>>();
         for (PaymentMethodConfig__mdt m : allMethods) {
-            // ゲートウェイが必要な手段はプロバイダーが設定されている場合のみ含める
             if (m.RequiresGateway__c == true && !enabledProviders.contains(m.ProviderName__c)) {
                 continue;
             }
             result.add(new Map<String, Object>{
-                'methodKey'    => m.MethodKey__c,
-                'providerName' => m.ProviderName__c,
-                'displayName'  => m.DisplayName__c,
-                'feeType'      => m.FeeType__c,
-                'feeValue'     => m.FeeValue__c ?? 0,
+                'methodKey'       => m.MethodKey__c,
+                'providerName'    => m.ProviderName__c,
+                'displayName'     => m.DisplayName__c,
                 'requiresGateway' => m.RequiresGateway__c
             });
         }
@@ -78,24 +74,23 @@ public with sharing class PaymentController {
     }
 
     /**
-     * 請求を作成する。PortalConfiguration__c の手数料設定に基づき
-     * PlatformFee__c を自動算出して Amount__c に加算する。
+     * 請求を作成する。PaymentFeeRuleController で全支払い共通＋カテゴリ別ルールを自動適用し
+     * PlatformFee__c と FeeBreakdown__c に保存する。
      */
     @AuraEnabled
     public static Id createPayment(Id memberId, String paymentType, Decimal baseAmount,
                                     Date dueDate, String paymentMethod, String description) {
-        PortalConfiguration__c config = PortalConfiguration__c.getInstance();
-
-        Decimal platformFee = 0;
-        if (config.EnablePlatformFee__c == true && config.PlatformFeeRate__c != null && config.PlatformFeeRate__c > 0) {
-            platformFee = (baseAmount * config.PlatformFeeRate__c / 100).setScale(0, System.RoundingMode.HALF_UP);
-        }
+        PaymentFeeRuleController.FeeCalculationResult feeResult =
+            PaymentFeeRuleController.calculateCreationFees(paymentType, baseAmount);
+        Decimal platformFee      = feeResult.totalFeeAmount;
+        String  feeBreakdownJson = feeResult.breakdownJson;
 
         Payment__c payment = new Payment__c(
             Member__c        = memberId,
             PaymentType__c   = paymentType,
             BaseAmount__c    = baseAmount,
             PlatformFee__c   = platformFee,
+            FeeBreakdown__c  = feeBreakdownJson,
             Amount__c        = baseAmount + platformFee,
             DueDate__c       = dueDate,
             PaymentMethod__c = paymentMethod,
@@ -111,7 +106,7 @@ public with sharing class PaymentController {
 
         EmailNotificationService.sendPaymentCreatedNotification(payment.Id);
 
-        // Slack 通知（設定が有効な場合）
+        PortalConfiguration__c config = PortalConfiguration__c.getInstance();
         if (config.EnableSlackNotification__c == true && String.isNotBlank(config.SupportSlackChannelId__c)) {
             notifySlackPaymentCreated(payment.Id);
         }
@@ -128,23 +123,22 @@ public with sharing class PaymentController {
     public static Id createPaymentWithNotification(Id memberId, String paymentType, Decimal baseAmount,
                                                     Date dueDate, String description,
                                                     String allowedMethodKeys, String channels) {
-        PortalConfiguration__c config = PortalConfiguration__c.getInstance();
-
-        Decimal platformFee = 0;
-        if (config.EnablePlatformFee__c == true && config.PlatformFeeRate__c != null && config.PlatformFeeRate__c > 0) {
-            platformFee = (baseAmount * config.PlatformFeeRate__c / 100).setScale(0, System.RoundingMode.HALF_UP);
-        }
+        PaymentFeeRuleController.FeeCalculationResult feeResult =
+            PaymentFeeRuleController.calculateCreationFees(paymentType, baseAmount);
+        Decimal platformFee      = feeResult.totalFeeAmount;
+        String  feeBreakdownJson = feeResult.breakdownJson;
 
         Payment__c payment = new Payment__c(
-            Member__c               = memberId,
-            PaymentType__c          = paymentType,
-            BaseAmount__c           = baseAmount,
-            PlatformFee__c          = platformFee,
-            Amount__c               = baseAmount + platformFee,
-            DueDate__c              = dueDate,
-            Description__c          = description,
-            PaymentStatus__c        = '未払い',
-            FiscalYear__c           = dueDate.year(),
+            Member__c                = memberId,
+            PaymentType__c           = paymentType,
+            BaseAmount__c            = baseAmount,
+            PlatformFee__c           = platformFee,
+            FeeBreakdown__c          = feeBreakdownJson,
+            Amount__c                = baseAmount + platformFee,
+            DueDate__c               = dueDate,
+            Description__c           = description,
+            PaymentStatus__c         = '未払い',
+            FiscalYear__c            = dueDate.year(),
             AllowedPaymentMethods__c = allowedMethodKeys
         );
 
@@ -155,6 +149,7 @@ public with sharing class PaymentController {
 
         EmailNotificationService.sendPaymentCreatedNotification(payment.Id);
 
+        PortalConfiguration__c config = PortalConfiguration__c.getInstance();
         String ch = (channels != null) ? channels.toLowerCase() : 'email';
         if ((ch == 'slack' || ch == 'both') && String.isNotBlank(config.SupportSlackChannelId__c)) {
             notifySlackPaymentCreated(payment.Id);
@@ -199,8 +194,6 @@ public with sharing class PaymentController {
 
     @AuraEnabled
     public static void createAnnualFeePayments(Integer fiscalYear) {
-        PortalConfiguration__c config = PortalConfiguration__c.getInstance();
-
         List<Member__c> activeMembers = [
             SELECT Id, MemberType__c, AnnualFee__c
             FROM Member__c
@@ -213,15 +206,15 @@ public with sharing class PaymentController {
 
         for (Member__c m : activeMembers) {
             Decimal base = m.AnnualFee__c != null ? m.AnnualFee__c : getDefaultFee(m.MemberType__c);
-            Decimal fee  = 0;
-            if (config.EnablePlatformFee__c == true && config.PlatformFeeRate__c != null && config.PlatformFeeRate__c > 0) {
-                fee = (base * config.PlatformFeeRate__c / 100).setScale(0, System.RoundingMode.HALF_UP);
-            }
+            PaymentFeeRuleController.FeeCalculationResult feeResult =
+                PaymentFeeRuleController.calculateCreationFees('年会費', base);
+            Decimal fee = feeResult.totalFeeAmount;
             payments.add(new Payment__c(
                 Member__c        = m.Id,
                 PaymentType__c   = '年会費',
                 BaseAmount__c    = base,
                 PlatformFee__c   = fee,
+                FeeBreakdown__c  = feeResult.breakdownJson,
                 Amount__c        = base + fee,
                 DueDate__c       = dueDate,
                 PaymentStatus__c = '未払い',
@@ -251,21 +244,6 @@ public with sharing class PaymentController {
             ORDER BY LastName__c ASC
             LIMIT 20
         ];
-    }
-
-    /**
-     * プラットフォーム手数料の設定情報を返す（LWC でプレビュー表示用）。
-     */
-    @AuraEnabled(cacheable=true)
-    public static Map<String, Object> getPlatformFeeConfig() {
-        PortalConfiguration__c config = PortalConfiguration__c.getInstance();
-        return new Map<String, Object>{
-            'enabled'  => config.EnablePlatformFee__c == true,
-            'rate'     => config.PlatformFeeRate__c ?? 0,
-            'label'    => String.isNotBlank(config.PlatformFeeLabel__c)
-                            ? config.PlatformFeeLabel__c
-                            : 'プラットフォーム利用手数料'
-        };
     }
 
     private static Decimal getDefaultFee(String memberType) {

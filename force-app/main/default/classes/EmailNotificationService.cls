@@ -29,8 +29,7 @@ public with sharing class EmailNotificationService {
         ];
 
         PortalConfiguration__c config = PortalConfiguration__c.getOrgDefaults();
-        String feeLabel = String.isNotBlank(config?.PlatformFeeLabel__c)
-            ? config.PlatformFeeLabel__c : 'プラットフォーム利用手数料';
+        String feeLabel = 'プラットフォーム利用手数料';
 
         String amountLine;
         if (payment.PlatformFee__c != null && payment.PlatformFee__c > 0) {

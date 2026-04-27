@@ -1,12 +1,13 @@
 import { LightningElement, api, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import getPaymentsByMember   from '@salesforce/apex/PaymentController.getPaymentsByMember';
-import recordPayment         from '@salesforce/apex/PaymentController.recordPayment';
-import issueReceipt          from '@salesforce/apex/PaymentController.issueReceipt';
+import getPaymentsByMember     from '@salesforce/apex/PaymentController.getPaymentsByMember';
+import recordPayment           from '@salesforce/apex/PaymentController.recordPayment';
+import issueReceipt            from '@salesforce/apex/PaymentController.issueReceipt';
 import getActivePaymentMethods from '@salesforce/apex/PaymentController.getActivePaymentMethods';
-import processPayment        from '@salesforce/apex/PaymentGatewayService.processPayment';
-import getProviderConfig     from '@salesforce/apex/PaymentGatewayService.getProviderConfig';
-import getDirectDebitFormUrl from '@salesforce/apex/PaymentGatewayService.getDirectDebitFormUrl';
+import processPayment          from '@salesforce/apex/PaymentGatewayService.processPayment';
+import getProviderConfig       from '@salesforce/apex/PaymentGatewayService.getProviderConfig';
+import getDirectDebitFormUrl   from '@salesforce/apex/PaymentGatewayService.getDirectDebitFormUrl';
+import calculateMethodFees     from '@salesforce/apex/PaymentFeeRuleController.calculateMethodFees';
 
 // 利用可能手段が指定されていない場合の汎用選択肢
 const FALLBACK_METHOD_OPTIONS = [
@@ -58,6 +59,8 @@ export default class PaymentForm extends LightningElement {
 
     // 決済手段マスターデータ（methodKey → メタデータ）
     _allMethods = [];
+    // 決済手段別手数料計算結果
+    _methodFeeResult = null;
 
     columns      = UNPAID_COLUMNS;
     paidColumns  = PAID_COLUMNS;
@@ -111,6 +114,20 @@ export default class PaymentForm extends LightningElement {
         }
     }
 
+    async _loadMethodFees() {
+        const methodKey = this._currentMethodKey;
+        const baseAmount = this.selectedPayment?.BaseAmount__c || this.selectedPayment?.Amount__c;
+        if (!methodKey || !baseAmount) {
+            this._methodFeeResult = null;
+            return;
+        }
+        try {
+            this._methodFeeResult = await calculateMethodFees({ methodKey, baseAmount });
+        } catch (e) {
+            this._methodFeeResult = null;
+        }
+    }
+
     // ----------------------------------------------------------------
     // Getter
     // ----------------------------------------------------------------
@@ -130,16 +147,10 @@ export default class PaymentForm extends LightningElement {
     get platformFeeDescription() { return 'プラットフォーム利用手数料'; }
 
     get methodFeeAmount() {
-        if (!this.selectedPayment || !this.selectedMethodKey) return 0;
-        const method = this._allMethods.find(m => m.methodKey === this.selectedMethodKey);
-        if (!method) return 0;
-        const base = this.selectedPayment.BaseAmount__c || this.selectedPayment.Amount__c;
-        if (method.feeType === 'percent') {
-            return Math.round(base * method.feeValue / 100);
-        } else if (method.feeType === 'fixed') {
-            return method.feeValue;
-        }
-        return 0;
+        return this._methodFeeResult?.totalFeeAmount ?? 0;
+    }
+    get methodFeeBreakdown() {
+        return this._methodFeeResult?.breakdown ?? [];
     }
     get hasMethodFee() { return this.methodFeeAmount > 0; }
 
@@ -164,28 +175,16 @@ export default class PaymentForm extends LightningElement {
 
     // 利用可能手段のラジオボタン用リスト
     get allowedMethodOptions() {
-        if (!this.hasAllowedMethods || !this._allMethods.length) return [];
+        if (!this.hasAllowedMethods) return [];
         const allowedKeys = this.selectedPayment.AllowedPaymentMethods__c.split(';')
             .map(k => k.trim()).filter(Boolean);
-        const base = this.selectedPayment?.BaseAmount__c || this.selectedPayment?.Amount__c || 0;
         return allowedKeys.map(key => {
-            const meta = this._allMethods.find(m => m.methodKey === key) || { methodKey: key, displayName: key, feeType: 'none', feeValue: 0 };
-            let feeLabel = '';
-            let hasFee = false;
-            if (meta.feeType === 'percent' && meta.feeValue > 0) {
-                const fee = Math.round(base * meta.feeValue / 100);
-                feeLabel = `¥${fee.toLocaleString('ja-JP')} (${meta.feeValue}%)`;
-                hasFee = true;
-            } else if (meta.feeType === 'fixed' && meta.feeValue > 0) {
-                feeLabel = `¥${Number(meta.feeValue).toLocaleString('ja-JP')}`;
-                hasFee = true;
-            }
+            const meta = this._allMethods.find(m => m.methodKey === key)
+                || { methodKey: key, displayName: key };
             return {
                 ...meta,
-                radioId:  'method_' + key,
-                checked:  this.selectedMethodKey === key,
-                feeLabel,
-                hasFee,
+                radioId: 'method_' + key,
+                checked: this.selectedMethodKey === key,
             };
         });
     }
@@ -232,8 +231,8 @@ export default class PaymentForm extends LightningElement {
         this.selectedPayment   = event.detail.row;
         this.gatewayError      = '';
         this.isLoadingProvider = true;
+        this._methodFeeResult  = null;
 
-        // デフォルト手段を設定
         if (this.selectedPayment?.AllowedPaymentMethods__c) {
             const first = this.selectedPayment.AllowedPaymentMethods__c.split(';')[0].trim();
             this.selectedMethodKey = first;
@@ -243,6 +242,7 @@ export default class PaymentForm extends LightningElement {
         }
 
         this.showModal = true;
+        this._loadMethodFees();
         if (this.showCardFrame) {
             this._setupMessageListener();
         }
@@ -251,6 +251,7 @@ export default class PaymentForm extends LightningElement {
     handleMethodRadioChange(event) {
         this.selectedMethodKey = event.target.value;
         this.gatewayError = '';
+        this._loadMethodFees();
         if (this.showCardFrame) {
             this.isLoadingProvider = true;
             this._setupMessageListener();
@@ -263,6 +264,7 @@ export default class PaymentForm extends LightningElement {
         this.paymentMethod     = event.detail.value;
         this.selectedMethodKey = event.detail.value;
         this.gatewayError = '';
+        this._loadMethodFees();
         if (this.showCardFrame) {
             this.isLoadingProvider = true;
             this._setupMessageListener();
@@ -276,10 +278,11 @@ export default class PaymentForm extends LightningElement {
     }
 
     closeModal() {
-        this.showModal       = false;
-        this.selectedPayment = null;
-        this.gatewayError    = '';
-        this.isProcessing    = false;
+        this.showModal        = false;
+        this.selectedPayment  = null;
+        this.gatewayError     = '';
+        this.isProcessing     = false;
+        this._methodFeeResult = null;
         this._removeMessageListener();
     }
 

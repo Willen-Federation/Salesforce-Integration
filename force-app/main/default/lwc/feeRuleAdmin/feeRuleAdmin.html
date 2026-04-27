@@ -1,0 +1,214 @@
+<template>
+    <lightning-card title="手数料ルール管理" icon-name="standard:product_consumed">
+        <div slot="actions">
+            <lightning-button
+                variant="brand"
+                label="新規ルール追加"
+                icon-name="utility:add"
+                onclick={handleNewRule}>
+            </lightning-button>
+        </div>
+        <div class="slds-card__body slds-card__body_inner">
+
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="読み込み中" size="medium"></lightning-spinner>
+            </template>
+
+            <template if:true={errorMessage}>
+                <div class="slds-notify slds-notify_alert slds-alert_error slds-m-bottom_small" role="alert">
+                    <lightning-icon icon-name="utility:error" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                    {errorMessage}
+                </div>
+            </template>
+
+            <!-- ルール一覧 -->
+            <template if:false={isLoading}>
+                <template if:true={hasRules}>
+                    <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_striped">
+                        <thead>
+                            <tr class="slds-line-height_reset">
+                                <th scope="col"><div class="slds-truncate">ルール名</div></th>
+                                <th scope="col"><div class="slds-truncate">種別</div></th>
+                                <th scope="col"><div class="slds-truncate">対象</div></th>
+                                <th scope="col"><div class="slds-truncate">手数料</div></th>
+                                <th scope="col"><div class="slds-truncate">表示ラベル</div></th>
+                                <th scope="col"><div class="slds-truncate">順序</div></th>
+                                <th scope="col"><div class="slds-truncate">有効</div></th>
+                                <th scope="col"><div class="slds-truncate">操作</div></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template for:each={rules} for:item="rule">
+                                <tr key={rule.Id}>
+                                    <td><div class="slds-truncate">{rule.RuleName__c}</div></td>
+                                    <td><div class="slds-truncate">{rule.RuleType__c}</div></td>
+                                    <td><div class="slds-truncate">{rule._targetDisplay}</div></td>
+                                    <td><div class="slds-truncate">{rule._feeDisplay}</div></td>
+                                    <td><div class="slds-truncate">{rule.FeeLabel__c}</div></td>
+                                    <td><div class="slds-truncate">{rule.SortOrder__c}</div></td>
+                                    <td>
+                                        <lightning-input
+                                            type="toggle"
+                                            checked={rule.IsEnabled__c}
+                                            data-id={rule.Id}
+                                            onchange={handleToggle}
+                                            label="">
+                                        </lightning-input>
+                                    </td>
+                                    <td>
+                                        <lightning-button-group>
+                                            <lightning-button
+                                                label="編集"
+                                                data-id={rule.Id}
+                                                onclick={handleEdit}
+                                                size="small">
+                                            </lightning-button>
+                                            <lightning-button
+                                                label="削除"
+                                                variant="destructive"
+                                                data-id={rule.Id}
+                                                onclick={handleDelete}
+                                                size="small">
+                                            </lightning-button>
+                                        </lightning-button-group>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </template>
+                <template if:false={hasRules}>
+                    <div class="slds-illustration slds-illustration_small slds-p-around_medium slds-text-align_center slds-text-color_weak">
+                        手数料ルールが登録されていません。「新規ルール追加」から作成してください。
+                    </div>
+                </template>
+            </template>
+        </div>
+    </lightning-card>
+
+    <!-- 作成/編集モーダル -->
+    <template if:true={showModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <lightning-button-icon
+                        icon-name="utility:close"
+                        alternative-text="閉じる"
+                        variant="bare-inverse"
+                        class="slds-modal__close"
+                        onclick={closeModal}>
+                    </lightning-button-icon>
+                    <h2 class="slds-modal__title slds-hyphenate">{modalTitle}</h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+
+                    <lightning-input
+                        label="ルール名"
+                        value={modalForm.ruleName}
+                        data-field="ruleName"
+                        onchange={handleModalChange}
+                        required
+                        class="slds-m-bottom_small">
+                    </lightning-input>
+
+                    <lightning-combobox
+                        label="適用種別"
+                        value={modalForm.ruleType}
+                        options={ruleTypeOptions}
+                        data-field="ruleType"
+                        onchange={handleModalChange}
+                        required
+                        class="slds-m-bottom_small">
+                    </lightning-combobox>
+
+                    <template if:true={isMethodType}>
+                        <lightning-input
+                            label="対象決済手段キー（セミコロン区切り）"
+                            value={modalForm.targetMethodKey}
+                            data-field="targetMethodKey"
+                            onchange={handleModalChange}
+                            placeholder="例: payjp_card;omise_card"
+                            class="slds-m-bottom_small">
+                        </lightning-input>
+                    </template>
+
+                    <template if:true={isCategoryType}>
+                        <lightning-input
+                            label="対象カテゴリ（セミコロン区切り）"
+                            value={modalForm.targetCategory}
+                            data-field="targetCategory"
+                            onchange={handleModalChange}
+                            placeholder="例: 年会費;イベント参加費"
+                            class="slds-m-bottom_small">
+                        </lightning-input>
+                    </template>
+
+                    <lightning-combobox
+                        label="手数料種別"
+                        value={modalForm.feeType}
+                        options={feeTypeOptions}
+                        data-field="feeType"
+                        onchange={handleModalChange}
+                        required
+                        class="slds-m-bottom_small">
+                    </lightning-combobox>
+
+                    <lightning-input
+                        type="number"
+                        label={feeValueLabel}
+                        value={modalForm.feeValue}
+                        data-field="feeValue"
+                        onchange={handleModalChange}
+                        min="0"
+                        step="0.01"
+                        required
+                        class="slds-m-bottom_small">
+                    </lightning-input>
+
+                    <lightning-input
+                        label="表示ラベル（任意）"
+                        value={modalForm.feeLabel}
+                        data-field="feeLabel"
+                        onchange={handleModalChange}
+                        placeholder="空白の場合はルール名を使用"
+                        class="slds-m-bottom_small">
+                    </lightning-input>
+
+                    <lightning-input
+                        type="number"
+                        label="表示順（任意）"
+                        value={modalForm.sortOrder}
+                        data-field="sortOrder"
+                        onchange={handleModalChange}
+                        min="0"
+                        class="slds-m-bottom_small">
+                    </lightning-input>
+
+                    <lightning-input
+                        type="toggle"
+                        label="有効"
+                        checked={modalForm.isEnabled}
+                        data-field="isEnabled"
+                        onchange={handleModalToggleChange}>
+                    </lightning-input>
+
+                    <template if:true={modalError}>
+                        <div class="slds-notify slds-notify_alert slds-alert_error slds-m-top_small" role="alert">
+                            {modalError}
+                        </div>
+                    </template>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label="キャンセル" onclick={closeModal}></lightning-button>
+                    <lightning-button
+                        label="保存"
+                        variant="brand"
+                        onclick={handleSave}
+                        disabled={isSaving}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>

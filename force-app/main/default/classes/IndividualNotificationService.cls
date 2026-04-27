@@ -114,8 +114,7 @@ public with sharing class IndividualNotificationService {
                 Payment__c rec = [SELECT Id, Name, Amount__c, BaseAmount__c, PlatformFee__c,
                                          PaymentStatus__c, DueDate__c FROM Payment__c WHERE Id = :recordId LIMIT 1];
                 PortalConfiguration__c cfg = PortalConfiguration__c.getOrgDefaults();
-                String feeLabel = String.isNotBlank(cfg?.PlatformFeeLabel__c)
-                    ? cfg.PlatformFeeLabel__c : 'プラットフォーム利用手数料';
+                String feeLabel = 'プラットフォーム利用手数料';
                 String portalUrl = cfg?.PortalBaseUrl__c ?? '';
                 template = template.replace('{!Payment.Name}',        rec.Name ?? '');
                 template = template.replace('{!Payment.Amount}',       rec.Amount__c   != null ? '¥' + String.valueOf(Integer.valueOf(rec.Amount__c))   : '');

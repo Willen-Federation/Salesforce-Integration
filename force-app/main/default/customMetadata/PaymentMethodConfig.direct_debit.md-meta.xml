@@ -12,12 +12,6 @@
         <field>DisplayName__c</field><value xsi:type="xsd:string">口座振替</value>
     </values>
     <values>
-        <field>FeeType__c</field><value xsi:type="xsd:string">none</value>
-    </values>
-    <values>
-        <field>FeeValue__c</field><value xsi:type="xsd:double">0</value>
-    </values>
-    <values>
         <field>IsEnabled__c</field><value xsi:type="xsd:boolean">true</value>
     </values>
     <values>

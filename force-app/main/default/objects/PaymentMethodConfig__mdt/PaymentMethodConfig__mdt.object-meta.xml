@@ -28,30 +28,6 @@
         <required>true</required>
     </fields>
     <fields>
-        <fullName>FeeType__c</fullName>
-        <fieldManageability>DeveloperControlled</fieldManageability>
-        <label>手数料種別</label>
-        <type>Picklist</type>
-        <required>false</required>
-        <valueSet>
-            <valueSetDefinition>
-                <sorted>false</sorted>
-                <value><fullName>none</fullName><label>なし</label><default>true</default></value>
-                <value><fullName>percent</fullName><label>料率（%）</label><default>false</default></value>
-                <value><fullName>fixed</fullName><label>固定額（円）</label><default>false</default></value>
-            </valueSetDefinition>
-        </valueSet>
-    </fields>
-    <fields>
-        <fullName>FeeValue__c</fullName>
-        <fieldManageability>DeveloperControlled</fieldManageability>
-        <label>手数料値</label>
-        <type>Number</type>
-        <precision>10</precision>
-        <scale>2</scale>
-        <required>false</required>
-    </fields>
-    <fields>
         <fullName>IsEnabled__c</fullName>
         <fieldManageability>DeveloperControlled</fieldManageability>
         <label>有効</label>

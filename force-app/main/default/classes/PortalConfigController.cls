@@ -18,10 +18,6 @@ public with sharing class PortalConfigController {
         @AuraEnabled public Decimal annualFeeCorporate;
         @AuraEnabled public Decimal annualFeeStudent;
         @AuraEnabled public Decimal annualFeeSupporting;
-        // Platform fee
-        @AuraEnabled public Boolean enablePlatformFee;
-        @AuraEnabled public Decimal platformFeeRate;
-        @AuraEnabled public String  platformFeeLabel;
     }
 
     @AuraEnabled(cacheable=true)
@@ -45,9 +41,6 @@ public with sharing class PortalConfigController {
         data.annualFeeCorporate      = config.AnnualFeeCorporate__c;
         data.annualFeeStudent        = config.AnnualFeeStudent__c;
         data.annualFeeSupporting     = config.AnnualFeeSupporting__c;
-        data.enablePlatformFee       = config.EnablePlatformFee__c;
-        data.platformFeeRate         = config.PlatformFeeRate__c;
-        data.platformFeeLabel        = config.PlatformFeeLabel__c;
         return data;
     }
 
@@ -89,9 +82,6 @@ public with sharing class PortalConfigController {
         if (settings.containsKey('annualFeeCorporate'))    config.AnnualFeeCorporate__c       = Decimal.valueOf(String.valueOf(settings.get('annualFeeCorporate')));
         if (settings.containsKey('annualFeeStudent'))      config.AnnualFeeStudent__c         = Decimal.valueOf(String.valueOf(settings.get('annualFeeStudent')));
         if (settings.containsKey('annualFeeSupporting'))   config.AnnualFeeSupporting__c      = Decimal.valueOf(String.valueOf(settings.get('annualFeeSupporting')));
-        if (settings.containsKey('enablePlatformFee'))    config.EnablePlatformFee__c        = (Boolean) settings.get('enablePlatformFee');
-        if (settings.containsKey('platformFeeRate'))      config.PlatformFeeRate__c          = Decimal.valueOf(String.valueOf(settings.get('platformFeeRate')));
-        if (settings.containsKey('platformFeeLabel'))     config.PlatformFeeLabel__c         = (String)  settings.get('platformFeeLabel');
 
         upsert config;
     }

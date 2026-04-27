@@ -223,4 +223,12 @@
         <required>false</required>
         <trackHistory>false</trackHistory>
     </fields>
+    <fields>
+        <fullName>FeeBreakdown__c</fullName>
+        <label>手数料内訳（JSON）</label>
+        <type>LongTextArea</type>
+        <length>4000</length>
+        <visibleLines>3</visibleLines>
+        <required>false</required>
+    </fields>
 </CustomObject>
