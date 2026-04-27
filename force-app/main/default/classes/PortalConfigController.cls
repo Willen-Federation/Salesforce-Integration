@@ -12,6 +12,9 @@ public with sharing class PortalConfigController {
         @AuraEnabled public String fincodeMode;
         @AuraEnabled public String fincodeShopId;
         @AuraEnabled public String directDebitFormUrl;
+        @AuraEnabled public String defaultPaymentProvider;
+        @AuraEnabled public String gmoAozoraMode;
+        @AuraEnabled public String gmoAozoraClientId;
         @AuraEnabled public Boolean enableDonation;
         @AuraEnabled public Boolean enableSlackNotification;
         @AuraEnabled public Decimal annualFeeIndividual;
@@ -35,6 +38,9 @@ public with sharing class PortalConfigController {
         data.fincodeMode             = config.FincodeMode__c;
         data.fincodeShopId           = config.FincodeShopId__c;
         data.directDebitFormUrl      = config.DirectDebitFormUrl__c;
+        data.defaultPaymentProvider  = config.DefaultPaymentProvider__c;
+        data.gmoAozoraMode           = config.GmoAozoraMode__c;
+        data.gmoAozoraClientId       = config.GmoAozoraClientId__c;
         data.enableDonation          = config.EnableDonation__c;
         data.enableSlackNotification = config.EnableSlackNotification__c;
         data.annualFeeIndividual     = config.AnnualFeeIndividual__c;
@@ -75,7 +81,12 @@ public with sharing class PortalConfigController {
         if (settings.containsKey('fincodePublicKey'))      config.FincodePublicKey__c         = (String)  settings.get('fincodePublicKey');
         if (settings.containsKey('fincodeSecretKey'))      config.FincodeSecretKey__c         = (String)  settings.get('fincodeSecretKey');
         if (settings.containsKey('fincodeMode'))           config.FincodeMode__c              = (String)  settings.get('fincodeMode');
-        if (settings.containsKey('directDebitFormUrl'))    config.DirectDebitFormUrl__c       = (String)  settings.get('directDebitFormUrl');
+        if (settings.containsKey('directDebitFormUrl'))      config.DirectDebitFormUrl__c         = (String)  settings.get('directDebitFormUrl');
+        if (settings.containsKey('defaultPaymentProvider')) config.DefaultPaymentProvider__c     = (String)  settings.get('defaultPaymentProvider');
+        if (settings.containsKey('gmoAozoraMode'))          config.GmoAozoraMode__c              = (String)  settings.get('gmoAozoraMode');
+        if (settings.containsKey('gmoAozoraClientId'))      config.GmoAozoraClientId__c          = (String)  settings.get('gmoAozoraClientId');
+        if (settings.containsKey('gmoAozoraClientSecret'))  config.GmoAozoraClientSecret__c      = (String)  settings.get('gmoAozoraClientSecret');
+        if (settings.containsKey('gmoAozoraWebhookSecret')) config.GmoAozoraWebhookSecret__c     = (String)  settings.get('gmoAozoraWebhookSecret');
         if (settings.containsKey('enableDonation'))        config.EnableDonation__c           = (Boolean) settings.get('enableDonation');
         if (settings.containsKey('enableSlack'))           config.EnableSlackNotification__c  = (Boolean) settings.get('enableSlack');
         if (settings.containsKey('annualFeeIndividual'))   config.AnnualFeeIndividual__c      = Decimal.valueOf(String.valueOf(settings.get('annualFeeIndividual')));

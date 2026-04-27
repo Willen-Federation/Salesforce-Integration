@@ -158,4 +158,7 @@
     <apexClassAccesses>
         <apexClass>FormBuilderController</apexClass><enabled>true</enabled>
     </apexClassAccesses>
+    <apexClassAccesses>
+        <apexClass>GmoAozoraService</apexClass><enabled>true</enabled>
+    </apexClassAccesses>
 </PermissionSet>

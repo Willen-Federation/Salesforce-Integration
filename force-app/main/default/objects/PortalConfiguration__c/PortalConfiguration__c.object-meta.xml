@@ -186,6 +186,58 @@
             </valueSetDefinition>
         </valueSet>
     </fields>
+    <!-- GMO Aozora Net Bank Settings -->
+    <fields>
+        <fullName>DefaultPaymentProvider__c</fullName>
+        <label>デフォルト決済プロバイダー</label>
+        <type>Picklist</type>
+        <required>false</required>
+        <valueSet>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>GMOあおぞら</fullName><label>GMOあおぞら</label><default>true</default></value>
+                <value><fullName>Pay.jp</fullName><label>Pay.jp</label><default>false</default></value>
+                <value><fullName>Omise</fullName><label>Omise</label><default>false</default></value>
+                <value><fullName>Stripe</fullName><label>Stripe</label><default>false</default></value>
+                <value><fullName>Fincode</fullName><label>Fincode</label><default>false</default></value>
+                <value><fullName>口座振替</fullName><label>口座振替</label><default>false</default></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>GmoAozoraMode__c</fullName>
+        <label>GMOあおぞら 環境</label>
+        <type>Picklist</type>
+        <required>false</required>
+        <valueSet>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>テスト</fullName><label>テスト</label><default>true</default></value>
+                <value><fullName>本番</fullName><label>本番</label><default>false</default></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>GmoAozoraClientId__c</fullName>
+        <label>GMOあおぞら クライアントID</label>
+        <type>Text</type>
+        <length>255</length>
+        <required>false</required>
+    </fields>
+    <fields>
+        <fullName>GmoAozoraClientSecret__c</fullName>
+        <label>GMOあおぞら クライアントシークレット</label>
+        <type>Text</type>
+        <length>255</length>
+        <required>false</required>
+    </fields>
+    <fields>
+        <fullName>GmoAozoraWebhookSecret__c</fullName>
+        <label>GMOあおぞら Webhookシークレット</label>
+        <type>Text</type>
+        <length>255</length>
+        <required>false</required>
+    </fields>
     <!-- Fincode Settings -->
     <fields>
         <fullName>FincodeShopId__c</fullName>
