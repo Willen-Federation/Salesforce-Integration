@@ -17,7 +17,7 @@ jobs:
     name: Validate Metadata (Sandbox)
     runs-on: ubuntu-latest
     # SF_CONSUMER_KEY_SANDBOX が設定されている場合のみ実行
-    if: ${{ vars.SKIP_SF_VALIDATION != 'true' }}
+    if: ${{ vars.SKIP_SF_VALIDATION != 'true' && secrets.SF_CONSUMER_KEY_SANDBOX != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -96,6 +96,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install xmllint
+        run: sudo apt-get install -y libxml2-utils
 
       - name: Check XML metadata files are well-formed
         run: |
