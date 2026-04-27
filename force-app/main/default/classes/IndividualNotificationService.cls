@@ -111,11 +111,20 @@ public with sharing class IndividualNotificationService {
     private static String mergeRelatedRecord(String template, String objectType, String recordId) {
         try {
             if (objectType == 'Payment__c') {
-                Payment__c rec = [SELECT Id, Name, Amount__c, PaymentStatus__c, DueDate__c FROM Payment__c WHERE Id = :recordId LIMIT 1];
-                template = template.replace('{!Payment.Name}',   rec.Name ?? '');
-                template = template.replace('{!Payment.Amount}', rec.Amount__c != null ? String.valueOf(Integer.valueOf(rec.Amount__c)) : '');
-                template = template.replace('{!Payment.Status}', rec.PaymentStatus__c ?? '');
-                template = template.replace('{!Payment.DueDate}', rec.DueDate__c != null ? rec.DueDate__c.format() : '');
+                Payment__c rec = [SELECT Id, Name, Amount__c, BaseAmount__c, PlatformFee__c,
+                                         PaymentStatus__c, DueDate__c FROM Payment__c WHERE Id = :recordId LIMIT 1];
+                PortalConfiguration__c cfg = PortalConfiguration__c.getOrgDefaults();
+                String feeLabel = String.isNotBlank(cfg?.PlatformFeeLabel__c)
+                    ? cfg.PlatformFeeLabel__c : 'プラットフォーム利用手数料';
+                String portalUrl = cfg?.PortalBaseUrl__c ?? '';
+                template = template.replace('{!Payment.Name}',        rec.Name ?? '');
+                template = template.replace('{!Payment.Amount}',       rec.Amount__c   != null ? '¥' + String.valueOf(Integer.valueOf(rec.Amount__c))   : '');
+                template = template.replace('{!Payment.BaseAmount}',   rec.BaseAmount__c != null ? '¥' + String.valueOf(Integer.valueOf(rec.BaseAmount__c)) : '');
+                template = template.replace('{!Payment.PlatformFee}',  rec.PlatformFee__c != null && rec.PlatformFee__c > 0
+                    ? feeLabel + ': ¥' + String.valueOf(Integer.valueOf(rec.PlatformFee__c)) : '');
+                template = template.replace('{!Payment.Status}',       rec.PaymentStatus__c ?? '');
+                template = template.replace('{!Payment.DueDate}',      rec.DueDate__c != null ? rec.DueDate__c.format() : '');
+                template = template.replace('{!Payment.PaymentUrl}',   String.isNotBlank(portalUrl) ? portalUrl : '');
             } else if (objectType == 'Activity__c') {
                 Activity__c rec = [SELECT Id, Name, ActivityTitle__c, ActivityDate__c, Location__c FROM Activity__c WHERE Id = :recordId LIMIT 1];
                 template = template.replace('{!Activity.Title}',    rec.ActivityTitle__c ?? '');

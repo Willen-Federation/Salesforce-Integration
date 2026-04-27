@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <label>PAY.JP クレジットカード</label>
+    <protected>false</protected>
+    <values>
+        <field>ProviderName__c</field><value xsi:type="xsd:string">Pay.jp</value>
+    </values>
+    <values>
+        <field>MethodKey__c</field><value xsi:type="xsd:string">payjp_card</value>
+    </values>
+    <values>
+        <field>DisplayName__c</field><value xsi:type="xsd:string">クレジットカード（PAY.JP）</value>
+    </values>
+    <values>
+        <field>FeeType__c</field><value xsi:type="xsd:string">percent</value>
+    </values>
+    <values>
+        <field>FeeValue__c</field><value xsi:type="xsd:double">3.6</value>
+    </values>
+    <values>
+        <field>IsEnabled__c</field><value xsi:type="xsd:boolean">true</value>
+    </values>
+    <values>
+        <field>RequiresGateway__c</field><value xsi:type="xsd:boolean">true</value>
+    </values>
+    <values>
+        <field>SortOrder__c</field><value xsi:type="xsd:double">10</value>
+    </values>
+</CustomMetadata>

@@ -221,4 +221,27 @@
             </valueSetDefinition>
         </valueSet>
     </fields>
+    <!-- Platform Fee Settings -->
+    <fields>
+        <fullName>EnablePlatformFee__c</fullName>
+        <label>プラットフォーム利用手数料を有効化</label>
+        <type>Checkbox</type>
+        <defaultValue>false</defaultValue>
+        <required>false</required>
+    </fields>
+    <fields>
+        <fullName>PlatformFeeRate__c</fullName>
+        <label>プラットフォーム利用手数料率（%）</label>
+        <type>Number</type>
+        <precision>5</precision>
+        <scale>2</scale>
+        <required>false</required>
+    </fields>
+    <fields>
+        <fullName>PlatformFeeLabel__c</fullName>
+        <label>手数料名称</label>
+        <type>Text</type>
+        <length>100</length>
+        <required>false</required>
+    </fields>
 </CustomObject>

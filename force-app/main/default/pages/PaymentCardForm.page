@@ -229,6 +229,17 @@
         </div>
       </div>
 
+      <!-- コンビニ・Pay-easy・Konbini フォーム -->
+      <div id="alt-container" style="display:none;">
+        <div class="slds-m-bottom_medium" style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:14px;">
+          <p style="font-size:14px;font-weight:600;margin-bottom:6px;" id="alt-method-label">コンビニ決済</p>
+          <p style="font-size:12px;color:#6b7280;line-height:1.6;">
+            「支払い手続きへ進む」ボタンを押すと、支払い番号を発行します。<br/>
+            発行後にお近くのコンビニ・ATM等でお支払いください。
+          </p>
+        </div>
+      </div>
+
       <!-- エラー表示 -->
       <div id="error-box" class="error-box">
         <span class="error-icon">⚠</span>
@@ -258,12 +269,13 @@
 (function() {
   // URLパラメータ取得
   var params = new URLSearchParams(window.location.search);
-  var provider   = params.get('provider')   || '';
-  var publicKey  = params.get('publicKey')  || '';
-  var amount     = parseInt(params.get('amount') || '0', 10);
+  var provider    = params.get('provider')   || '';
+  var publicKey   = params.get('publicKey')  || '';
+  var methodKey   = params.get('methodKey')  || 'credit_card';
+  var amount      = parseInt(params.get('amount') || '0', 10);
   var description = decodeURIComponent(params.get('description') || '');
-  var paymentId  = params.get('paymentId')  || '';
-  var originUrl  = decodeURIComponent(params.get('origin') || '');
+  var paymentId   = params.get('paymentId')  || '';
+  var originUrl   = decodeURIComponent(params.get('origin') || '');
 
   var submitBtn    = document.getElementById('submit-btn');
   var btnSpinner   = document.getElementById('btn-spinner');
@@ -309,6 +321,30 @@
       paymentId: paymentId,
       provider: provider
     }, target);
+  }
+
+  function sendAltGatewayProceed() {
+    showSuccess();
+    var target = originUrl || '*';
+    window.parent.postMessage({
+      type: 'ALT_GATEWAY_PROCEED',
+      paymentId: paymentId,
+      methodKey: methodKey,
+      provider:  provider
+    }, target);
+  }
+
+  // コンビニ・Pay-easy・Konbini UI
+  function initAlternativePayment(displayLabel) {
+    var container = document.getElementById('alt-container');
+    container.style.display = 'block';
+    document.getElementById('alt-method-label').textContent = displayLabel;
+    loadingOverlay.classList.remove('visible');
+
+    submitBtn.addEventListener('click', function() {
+      setLoading(true);
+      sendAltGatewayProceed();
+    });
   }
 
   function loadScript(src, onload, onerror) {
@@ -478,7 +514,27 @@
     }
   }
 
-  // プロバイダー別にSDKを読み込み
+  // 決済手段キーに基づいてどの UI を初期化するか決定
+  var ALT_GATEWAY_KEYS = {
+    'omise_convenience_store': 'コンビニ決済（Omise）',
+    'omise_pay_easy':          'Pay-easy（Omise）',
+    'stripe_konbini':          'コンビニ決済（Stripe）'
+  };
+
+  var CARD_KEYS = {
+    'payjp_card':   'Pay.jp',
+    'omise_card':   'Omise',
+    'stripe_card':  'Stripe'
+  };
+
+  if (ALT_GATEWAY_KEYS[methodKey]) {
+    // コンビニ・Pay-easy などの代替ゲートウェイ手段
+    document.getElementById('btn-text').textContent = '支払い手続きへ進む';
+    initAlternativePayment(ALT_GATEWAY_KEYS[methodKey]);
+    return;
+  }
+
+  // クレジットカード手段（SDKが必要）
   if (!provider || !publicKey) {
     loadingOverlay.classList.remove('visible');
     showError('決済プロバイダーが設定されていません。管理者にお問い合わせください。');

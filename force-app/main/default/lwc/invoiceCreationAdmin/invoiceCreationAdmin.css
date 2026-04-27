@@ -1,0 +1,50 @@
+.section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #5b6377;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+}
+
+.amount-summary {
+    border-radius: 8px;
+    background: #f4f6f9;
+}
+
+.fee-amount { color: #e07b39; font-weight: 500; }
+.total-label { font-weight: 700; border-top: 1px solid #ddd; padding-top: 6px; }
+.total-amount { font-size: 16px; font-weight: 700; color: #1b96ff; border-top: 1px solid #ddd; padding-top: 6px; }
+
+.member-dropdown {
+    position: absolute;
+    z-index: 9999;
+    width: 100%;
+    background: #fff;
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.member-dropdown li { cursor: pointer; }
+.member-dropdown li:hover { background: #f3f2f2; }
+.member-name { font-weight: 500; display: block; }
+.member-detail { font-size: 11px; display: block; }
+
+.selected-member-badge {
+    display: inline-flex;
+    align-items: center;
+    background: #e8f4fd;
+    border: 1px solid #b0d4f1;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 13px;
+    max-width: 100%;
+}
+
+.method-row { align-items: center; }
+.method-label { cursor: pointer; display: flex; align-items: center; }
+.method-name { font-size: 13px; font-weight: 500; }
+.method-fee { font-size: 11px; }

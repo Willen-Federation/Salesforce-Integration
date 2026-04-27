@@ -141,6 +141,39 @@
                         </div>
                     </div>
                 </lightning-accordion-section>
+
+                <!-- プラットフォーム利用手数料設定 -->
+                <lightning-accordion-section name="platformFee" label="プラットフォーム利用手数料">
+                    <p class="slds-text-body_small slds-m-bottom_small">
+                        請求作成時に基本金額に対して自動加算される利用手数料を設定します。
+                    </p>
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-4 slds-p-right_small">
+                            <lightning-input type="checkbox" label="手数料を有効化"
+                                data-key="enablePlatformFee"
+                                checked={config.enablePlatformFee}
+                                onchange={handleCheckChange}>
+                            </lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-4 slds-p-right_small">
+                            <lightning-input type="number" label="手数料率（%）"
+                                data-key="platformFeeRate"
+                                value={config.platformFeeRate}
+                                min="0" max="100" step="0.01"
+                                onchange={handleChange}
+                                placeholder="例: 3.5">
+                            </lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input label="手数料名称"
+                                data-key="platformFeeLabel"
+                                value={config.platformFeeLabel}
+                                onchange={handleChange}
+                                placeholder="例: プラットフォーム利用手数料">
+                            </lightning-input>
+                        </div>
+                    </div>
+                </lightning-accordion-section>
             </lightning-accordion>
 
             <div class="slds-m-top_medium slds-align_absolute-center">

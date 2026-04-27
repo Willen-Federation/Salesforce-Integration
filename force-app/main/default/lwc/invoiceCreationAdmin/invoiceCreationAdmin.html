@@ -1,0 +1,209 @@
+<template>
+    <lightning-card title="請求書発行" icon-name="standard:payment_gateway">
+        <div class="slds-card__body slds-card__body_inner">
+
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="処理中" size="medium"></lightning-spinner>
+            </template>
+
+            <!-- 成功メッセージ -->
+            <template if:true={successMessage}>
+                <div class="slds-notify slds-notify_alert slds-alert_success slds-m-bottom_medium" role="alert">
+                    <lightning-icon icon-name="utility:success" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                    {successMessage}
+                    <lightning-button label="別の請求を発行" variant="base" onclick={resetForm} class="slds-m-left_medium"></lightning-button>
+                </div>
+            </template>
+
+            <!-- エラーメッセージ -->
+            <template if:true={errorMessage}>
+                <div class="slds-notify slds-notify_alert slds-alert_error slds-m-bottom_medium" role="alert">
+                    <lightning-icon icon-name="utility:error" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                    {errorMessage}
+                </div>
+            </template>
+
+            <template if:false={successMessage}>
+                <div class="slds-grid slds-wrap slds-gutters">
+
+                    <!-- ========== 左カラム：請求情報 ========== -->
+                    <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+                        <div class="section-title slds-text-title_caps slds-m-bottom_x-small">請求情報</div>
+
+                        <!-- 会員検索 -->
+                        <div class="slds-form-element slds-m-bottom_small">
+                            <label class="slds-form-element__label" for="member-search">
+                                <abbr class="slds-required" title="必須">*</abbr> 対象会員
+                            </label>
+                            <div class="slds-form-element__control slds-input-has-icon slds-input-has-icon_right">
+                                <lightning-icon icon-name="utility:search" size="x-small" class="slds-input__icon slds-input__icon_right"></lightning-icon>
+                                <input type="text" id="member-search" class="slds-input"
+                                    placeholder="氏名・メールで検索..."
+                                    value={memberSearchInput}
+                                    oninput={handleMemberSearch}
+                                    autocomplete="off"/>
+                            </div>
+                            <template if:true={showMemberDropdown}>
+                                <div class="member-dropdown slds-dropdown slds-dropdown_length-5 slds-dropdown_fluid">
+                                    <ul class="slds-listbox slds-listbox_vertical" role="listbox">
+                                        <template if:true={hasMemberResults}>
+                                            <template for:each={memberResults} for:item="m">
+                                                <li key={m.Id} role="presentation" class="slds-listbox__item"
+                                                    data-id={m.Id} data-name={m.fullName} data-email={m.Email__c}
+                                                    onclick={handleMemberSelect}>
+                                                    <span class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small">
+                                                        <span class="slds-media__body">
+                                                            <span class="slds-truncate member-name">{m.fullName}</span>
+                                                            <span class="slds-truncate slds-text-color_weak member-detail">{m.Email__c} / {m.MemberType__c}</span>
+                                                        </span>
+                                                    </span>
+                                                </li>
+                                            </template>
+                                        </template>
+                                        <template if:false={hasMemberResults}>
+                                            <li class="slds-listbox__item">
+                                                <span class="slds-listbox__option slds-listbox__option_plain slds-text-color_weak">
+                                                    該当する会員が見つかりません
+                                                </span>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </div>
+                            </template>
+                            <template if:true={selectedMember}>
+                                <div class="selected-member-badge slds-m-top_x-small">
+                                    <lightning-icon icon-name="standard:contact" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                                    <strong>{selectedMember.fullName}</strong>
+                                    <span class="slds-text-color_weak slds-m-left_x-small">{selectedMember.Email__c}</span>
+                                    <lightning-button-icon icon-name="utility:close" size="x-small"
+                                        alternative-text="選択解除" onclick={clearMember}
+                                        class="slds-m-left_x-small">
+                                    </lightning-button-icon>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- 支払種別 -->
+                        <lightning-combobox
+                            label="支払種別"
+                            value={form.paymentType}
+                            options={paymentTypeOptions}
+                            onchange={handleFormChange}
+                            data-field="paymentType"
+                            required
+                            class="slds-m-bottom_small">
+                        </lightning-combobox>
+
+                        <!-- 基本金額 -->
+                        <lightning-input
+                            type="number"
+                            label="基本金額（円）"
+                            value={form.baseAmount}
+                            onchange={handleAmountChange}
+                            min="1"
+                            required
+                            class="slds-m-bottom_small">
+                        </lightning-input>
+
+                        <!-- 支払期限 -->
+                        <lightning-input
+                            type="date"
+                            label="支払期限"
+                            value={form.dueDate}
+                            onchange={handleFormChange}
+                            data-field="dueDate"
+                            required
+                            class="slds-m-bottom_small">
+                        </lightning-input>
+
+                        <!-- 摘要 -->
+                        <lightning-textarea
+                            label="摘要（任意）"
+                            value={form.description}
+                            onchange={handleFormChange}
+                            data-field="description"
+                            max-length="500"
+                            class="slds-m-bottom_small">
+                        </lightning-textarea>
+                    </div>
+
+                    <!-- ========== 右カラム：手数料・決済手段・通知 ========== -->
+                    <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+
+                        <!-- 金額サマリー -->
+                        <div class="amount-summary slds-box slds-theme_shade slds-m-bottom_medium">
+                            <div class="section-title slds-text-title_caps slds-m-bottom_small">金額内訳</div>
+                            <dl class="slds-dl_horizontal">
+                                <dt class="slds-dl_horizontal__label slds-text-color_weak">基本金額</dt>
+                                <dd class="slds-dl_horizontal__detail">{formattedBaseAmount}</dd>
+                                <template if:true={hasPlatformFee}>
+                                    <dt class="slds-dl_horizontal__label slds-text-color_weak">{platformFeeLabel}</dt>
+                                    <dd class="slds-dl_horizontal__detail fee-amount">+ {formattedPlatformFee}</dd>
+                                </template>
+                                <template if:true={hasMethodFee}>
+                                    <dt class="slds-dl_horizontal__label slds-text-color_weak">決済手段手数料</dt>
+                                    <dd class="slds-dl_horizontal__detail fee-amount">+ {formattedMethodFee}</dd>
+                                </template>
+                                <dt class="slds-dl_horizontal__label total-label">合計金額</dt>
+                                <dd class="slds-dl_horizontal__detail total-amount">{formattedTotalAmount}</dd>
+                            </dl>
+                        </div>
+
+                        <!-- 利用可能決済手段の選択 -->
+                        <div class="section-title slds-text-title_caps slds-m-bottom_x-small">
+                            利用可能決済手段を選択
+                            <span class="slds-text-body_small slds-text-color_weak slds-m-left_x-small">（複数選択可）</span>
+                        </div>
+                        <template if:true={hasPaymentMethods}>
+                            <div class="slds-m-bottom_medium">
+                                <template for:each={paymentMethodList} for:item="method">
+                                    <div key={method.methodKey} class="method-row slds-grid slds-gutters_x-small slds-m-bottom_x-small">
+                                        <div class="slds-col slds-shrink">
+                                            <input type="checkbox"
+                                                id={method.methodKey}
+                                                data-key={method.methodKey}
+                                                checked={method.checked}
+                                                onchange={handleMethodToggle}
+                                                class="slds-checkbox"/>
+                                        </div>
+                                        <div class="slds-col slds-grow">
+                                            <label for={method.methodKey} class="slds-checkbox__label method-label">
+                                                <span class="method-name">{method.displayName}</span>
+                                                <span class="method-fee slds-text-color_weak slds-text-body_small slds-m-left_x-small">
+                                                    {method.feeDescription}
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- 通知方法 -->
+                        <div class="section-title slds-text-title_caps slds-m-bottom_x-small">通知方法</div>
+                        <lightning-combobox
+                            label="通知チャンネル"
+                            value={form.notificationChannels}
+                            options={notificationOptions}
+                            onchange={handleFormChange}
+                            data-field="notificationChannels"
+                            class="slds-m-bottom_medium">
+                        </lightning-combobox>
+                    </div>
+                </div>
+
+                <!-- 送信ボタン -->
+                <div class="slds-m-top_medium slds-align_absolute-center">
+                    <lightning-button
+                        variant="brand"
+                        label="請求を発行して通知する"
+                        icon-name="utility:send"
+                        onclick={handleSubmit}
+                        disabled={isSubmitDisabled}>
+                    </lightning-button>
+                </div>
+            </template>
+
+        </div>
+    </lightning-card>
+</template>

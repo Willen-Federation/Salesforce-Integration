@@ -181,4 +181,46 @@
         <startingNumber>1</startingNumber>
         <trackHistory>true</trackHistory>
     </fields>
+    <fields>
+        <fullName>BaseAmount__c</fullName>
+        <label>基本金額</label>
+        <type>Currency</type>
+        <precision>12</precision>
+        <scale>0</scale>
+        <required>false</required>
+        <trackHistory>false</trackHistory>
+    </fields>
+    <fields>
+        <fullName>PlatformFee__c</fullName>
+        <label>プラットフォーム利用手数料</label>
+        <type>Currency</type>
+        <precision>12</precision>
+        <scale>0</scale>
+        <required>false</required>
+        <trackHistory>false</trackHistory>
+    </fields>
+    <fields>
+        <fullName>AllowedPaymentMethods__c</fullName>
+        <label>利用可能決済手段</label>
+        <type>LongTextArea</type>
+        <length>1000</length>
+        <visibleLines>3</visibleLines>
+        <required>false</required>
+    </fields>
+    <fields>
+        <fullName>SelectedMethodKey__c</fullName>
+        <label>選択済み決済手段キー</label>
+        <type>Text</type>
+        <length>50</length>
+        <required>false</required>
+    </fields>
+    <fields>
+        <fullName>PaymentMethodFee__c</fullName>
+        <label>決済手段手数料</label>
+        <type>Currency</type>
+        <precision>12</precision>
+        <scale>0</scale>
+        <required>false</required>
+        <trackHistory>false</trackHistory>
+    </fields>
 </CustomObject>

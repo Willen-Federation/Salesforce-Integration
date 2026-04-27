@@ -24,18 +24,34 @@ public with sharing class EmailNotificationService {
     public static void sendPaymentCreatedNotification(Id paymentId) {
         Payment__c payment = [
             SELECT Id, Name, Member__r.Email__c, Member__r.LastName__c, Member__r.FirstName__c,
-                   PaymentType__c, Amount__c, DueDate__c, Description__c
+                   PaymentType__c, Amount__c, BaseAmount__c, PlatformFee__c, DueDate__c, Description__c
             FROM Payment__c WHERE Id = :paymentId WITH SECURITY_ENFORCED
         ];
+
+        PortalConfiguration__c config = PortalConfiguration__c.getOrgDefaults();
+        String feeLabel = String.isNotBlank(config?.PlatformFeeLabel__c)
+            ? config.PlatformFeeLabel__c : 'プラットフォーム利用手数料';
+
+        String amountLine;
+        if (payment.PlatformFee__c != null && payment.PlatformFee__c > 0) {
+            amountLine = '基本金額: ¥' + String.valueOf(payment.BaseAmount__c.longValue()) + '\n'
+                + feeLabel + ': ¥' + String.valueOf(payment.PlatformFee__c.longValue()) + '\n'
+                + '合計金額: ¥' + String.valueOf(payment.Amount__c.longValue());
+        } else {
+            amountLine = '金額: ¥' + String.valueOf(payment.Amount__c.longValue());
+        }
+
+        String portalUrl = String.isNotBlank(config?.PortalBaseUrl__c) ? config.PortalBaseUrl__c : '';
 
         String body = '【' + payment.Member__r.LastName__c + ' ' + payment.Member__r.FirstName__c + ' 様】\n\n'
             + '以下の支払いが発生しました。期限までにお支払いください。\n\n'
             + '支払い番号: ' + payment.Name + '\n'
             + '種別: ' + payment.PaymentType__c + '\n'
-            + '金額: ¥' + String.valueOf(payment.Amount__c.longValue()) + '\n'
+            + amountLine + '\n'
             + '支払期限: ' + payment.DueDate__c.format() + '\n'
             + (String.isNotBlank(payment.Description__c) ? '摘要: ' + payment.Description__c + '\n' : '')
-            + '\nポータルサイトよりお支払い手続きをお願いします。';
+            + '\nポータルサイトよりお支払い手続きをお願いします。'
+            + (String.isNotBlank(portalUrl) ? '\n' + portalUrl : '');
 
         sendEmail(payment.Member__r.Email__c, '【支払いのご案内】' + payment.PaymentType__c, body);
     }

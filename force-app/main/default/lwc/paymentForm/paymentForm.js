@@ -1,13 +1,15 @@
 import { LightningElement, api, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import getPaymentsByMember from '@salesforce/apex/PaymentController.getPaymentsByMember';
-import recordPayment       from '@salesforce/apex/PaymentController.recordPayment';
-import issueReceipt        from '@salesforce/apex/PaymentController.issueReceipt';
-import processPayment      from '@salesforce/apex/PaymentGatewayService.processPayment';
-import getProviderConfig   from '@salesforce/apex/PaymentGatewayService.getProviderConfig';
+import getPaymentsByMember   from '@salesforce/apex/PaymentController.getPaymentsByMember';
+import recordPayment         from '@salesforce/apex/PaymentController.recordPayment';
+import issueReceipt          from '@salesforce/apex/PaymentController.issueReceipt';
+import getActivePaymentMethods from '@salesforce/apex/PaymentController.getActivePaymentMethods';
+import processPayment        from '@salesforce/apex/PaymentGatewayService.processPayment';
+import getProviderConfig     from '@salesforce/apex/PaymentGatewayService.getProviderConfig';
 import getDirectDebitFormUrl from '@salesforce/apex/PaymentGatewayService.getDirectDebitFormUrl';
 
-const PAYMENT_METHOD_OPTIONS = [
+// 利用可能手段が指定されていない場合の汎用選択肢
+const FALLBACK_METHOD_OPTIONS = [
     { label: 'クレジットカード', value: 'credit_card' },
     { label: '銀行振込',         value: 'bank_transfer' },
     { label: '口座振替',         value: 'direct_debit' },
@@ -33,30 +35,42 @@ const PAID_COLUMNS = [
     }},
 ];
 
+// ゲートウェイが必要なカード決済のキー
+const CARD_METHOD_KEYS = new Set(['payjp_card', 'omise_card', 'stripe_card']);
+// ゲートウェイが必要な非カード手段のキー（コンビニ・Pay-easyなど）
+const ALT_GATEWAY_KEYS = new Set(['omise_convenience_store', 'omise_pay_easy', 'stripe_konbini']);
+
 export default class PaymentForm extends LightningElement {
     @api memberId;
 
-    @track payments        = [];
-    @track selectedPayment = null;
-    @track showModal       = false;
-    @track paymentMethod   = 'credit_card';
-    @track isProcessing    = false;
+    @track payments          = [];
+    @track selectedPayment   = null;
+    @track showModal         = false;
+    @track isProcessing      = false;
     @track isLoadingProvider = true;
-    @track gatewayError    = '';
+    @track gatewayError      = '';
+
+    // 選択中の支払い手段（methodKey または fallback value）
+    @track selectedMethodKey = '';
+
+    // 汎用セレクター用（AllowedPaymentMethods__c が未設定の場合）
+    @track paymentMethod = 'credit_card';
+
+    // 決済手段マスターデータ（methodKey → メタデータ）
+    _allMethods = [];
 
     columns      = UNPAID_COLUMNS;
     paidColumns  = PAID_COLUMNS;
-    paymentMethodOptions = PAYMENT_METHOD_OPTIONS;
+    paymentMethodOptions = FALLBACK_METHOD_OPTIONS;
 
-    // プロバイダー設定（getProviderConfig() から取得）
     _providerName = '';
     _publicKey    = '';
-    _iframeWindow = null;
     _messageHandler = null;
 
     connectedCallback() {
         this.loadPayments();
         this.loadProviderConfig();
+        this.loadAllMethods();
     }
 
     disconnectedCallback() {
@@ -89,6 +103,14 @@ export default class PaymentForm extends LightningElement {
         }
     }
 
+    async loadAllMethods() {
+        try {
+            this._allMethods = await getActivePaymentMethods();
+        } catch (e) {
+            this._allMethods = [];
+        }
+    }
+
     // ----------------------------------------------------------------
     // Getter
     // ----------------------------------------------------------------
@@ -98,31 +120,104 @@ export default class PaymentForm extends LightningElement {
     get hasUnpaidPayments() { return this.unpaidPayments.length > 0; }
     get hasPaidPayments()   { return this.paidPayments.length > 0; }
 
-    get formattedAmount() {
-        if (!this.selectedPayment) return '';
-        return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' })
-            .format(this.selectedPayment.Amount__c);
+    // 金額内訳 getter
+    get hasBaseAmount() {
+        return this.selectedPayment?.BaseAmount__c != null && this.selectedPayment.BaseAmount__c > 0;
+    }
+    get hasPlatformFee() {
+        return this.selectedPayment?.PlatformFee__c != null && this.selectedPayment.PlatformFee__c > 0;
+    }
+    get platformFeeDescription() { return 'プラットフォーム利用手数料'; }
+
+    get methodFeeAmount() {
+        if (!this.selectedPayment || !this.selectedMethodKey) return 0;
+        const method = this._allMethods.find(m => m.methodKey === this.selectedMethodKey);
+        if (!method) return 0;
+        const base = this.selectedPayment.BaseAmount__c || this.selectedPayment.Amount__c;
+        if (method.feeType === 'percent') {
+            return Math.round(base * method.feeValue / 100);
+        } else if (method.feeType === 'fixed') {
+            return method.feeValue;
+        }
+        return 0;
+    }
+    get hasMethodFee() { return this.methodFeeAmount > 0; }
+
+    get totalPayAmount() {
+        if (!this.selectedPayment) return 0;
+        return (this.selectedPayment.Amount__c || 0) + this.methodFeeAmount;
     }
 
-    get showCardFrame()  { return this.paymentMethod === 'credit_card'; }
-    get isBankTransfer() { return this.paymentMethod === 'bank_transfer'; }
-    get isDirectDebit()  { return this.paymentMethod === 'direct_debit'; }
-    get isInvoice()      { return this.paymentMethod === 'invoice'; }
+    _formatYen(v) {
+        return '¥' + Number(v).toLocaleString('ja-JP');
+    }
+    get formattedBaseAmount()  { return this._formatYen(this.selectedPayment?.BaseAmount__c || 0); }
+    get formattedPlatformFee() { return this._formatYen(this.selectedPayment?.PlatformFee__c || 0); }
+    get formattedMethodFee()   { return this._formatYen(this.methodFeeAmount); }
+    get formattedTotal()       { return this._formatYen(this.totalPayAmount); }
 
-    /** VF ページの URL をプロバイダー・公開鍵・金額付きで生成 */
+    // 請求に利用可能手段が指定されているか
+    get hasAllowedMethods() {
+        return this.selectedPayment?.AllowedPaymentMethods__c != null
+            && this.selectedPayment.AllowedPaymentMethods__c.trim() !== '';
+    }
+
+    // 利用可能手段のラジオボタン用リスト
+    get allowedMethodOptions() {
+        if (!this.hasAllowedMethods || !this._allMethods.length) return [];
+        const allowedKeys = this.selectedPayment.AllowedPaymentMethods__c.split(';')
+            .map(k => k.trim()).filter(Boolean);
+        const base = this.selectedPayment?.BaseAmount__c || this.selectedPayment?.Amount__c || 0;
+        return allowedKeys.map(key => {
+            const meta = this._allMethods.find(m => m.methodKey === key) || { methodKey: key, displayName: key, feeType: 'none', feeValue: 0 };
+            let feeLabel = '';
+            let hasFee = false;
+            if (meta.feeType === 'percent' && meta.feeValue > 0) {
+                const fee = Math.round(base * meta.feeValue / 100);
+                feeLabel = `¥${fee.toLocaleString('ja-JP')} (${meta.feeValue}%)`;
+                hasFee = true;
+            } else if (meta.feeType === 'fixed' && meta.feeValue > 0) {
+                feeLabel = `¥${Number(meta.feeValue).toLocaleString('ja-JP')}`;
+                hasFee = true;
+            }
+            return {
+                ...meta,
+                radioId:  'method_' + key,
+                checked:  this.selectedMethodKey === key,
+                feeLabel,
+                hasFee,
+            };
+        });
+    }
+
+    // 現在選択中の手段が何かを判定
+    get _currentMethodKey() {
+        return this.hasAllowedMethods ? this.selectedMethodKey : this.paymentMethod;
+    }
+
+    get showCardFrame() {
+        return CARD_METHOD_KEYS.has(this._currentMethodKey)
+            || ALT_GATEWAY_KEYS.has(this._currentMethodKey);
+    }
+    get showAlternativeGateway() { return false; }
+    get isBankTransfer()  { return this._currentMethodKey === 'bank_transfer'; }
+    get isDirectDebit()   { return this._currentMethodKey === 'direct_debit'; }
+    get isInvoice()       { return this._currentMethodKey === 'invoice'; }
+
     get cardFrameUrl() {
-        if (!this.selectedPayment || !this._providerName || this._providerName === 'none') {
-            return null;
-        }
-        const origin = encodeURIComponent(window.location.origin);
-        const desc   = encodeURIComponent(
+        if (!this.selectedPayment || !this._providerName || this._providerName === 'none') return null;
+        const origin   = encodeURIComponent(window.location.origin);
+        const methodKey = encodeURIComponent(this._currentMethodKey || 'credit_card');
+        const desc     = encodeURIComponent(
             this.selectedPayment.PaymentType__c + ' - ' + this.selectedPayment.Name
         );
+        const totalAmount = this.totalPayAmount;
         return (
             `/apex/PaymentCardForm` +
             `?provider=${encodeURIComponent(this._providerName)}` +
             `&publicKey=${encodeURIComponent(this._publicKey)}` +
-            `&amount=${this.selectedPayment.Amount__c}` +
+            `&methodKey=${methodKey}` +
+            `&amount=${totalAmount}` +
             `&description=${desc}` +
             `&paymentId=${this.selectedPayment.Id}` +
             `&origin=${origin}`
@@ -134,18 +229,41 @@ export default class PaymentForm extends LightningElement {
     // ----------------------------------------------------------------
 
     handleRowAction(event) {
-        this.selectedPayment = event.detail.row;
-        this.paymentMethod   = 'credit_card';
-        this.gatewayError    = '';
+        this.selectedPayment   = event.detail.row;
+        this.gatewayError      = '';
         this.isLoadingProvider = true;
-        this.showModal       = true;
-        this._setupMessageListener();
+
+        // デフォルト手段を設定
+        if (this.selectedPayment?.AllowedPaymentMethods__c) {
+            const first = this.selectedPayment.AllowedPaymentMethods__c.split(';')[0].trim();
+            this.selectedMethodKey = first;
+        } else {
+            this.paymentMethod     = 'credit_card';
+            this.selectedMethodKey = 'credit_card';
+        }
+
+        this.showModal = true;
+        if (this.showCardFrame) {
+            this._setupMessageListener();
+        }
+    }
+
+    handleMethodRadioChange(event) {
+        this.selectedMethodKey = event.target.value;
+        this.gatewayError = '';
+        if (this.showCardFrame) {
+            this.isLoadingProvider = true;
+            this._setupMessageListener();
+        } else {
+            this._removeMessageListener();
+        }
     }
 
     handleMethodChange(event) {
-        this.paymentMethod = event.detail.value;
-        this.gatewayError  = '';
-        if (this.paymentMethod === 'credit_card') {
+        this.paymentMethod     = event.detail.value;
+        this.selectedMethodKey = event.detail.value;
+        this.gatewayError = '';
+        if (this.showCardFrame) {
             this.isLoadingProvider = true;
             this._setupMessageListener();
         } else {
@@ -155,11 +273,6 @@ export default class PaymentForm extends LightningElement {
 
     handleIframeLoad() {
         this.isLoadingProvider = false;
-        // iframe への参照を保持
-        const iframe = this.template.querySelector('iframe');
-        if (iframe) {
-            this._iframeWindow = iframe.contentWindow;
-        }
     }
 
     closeModal() {
@@ -170,9 +283,13 @@ export default class PaymentForm extends LightningElement {
         this._removeMessageListener();
     }
 
-    /** カード以外の支払方法（銀行振込・口座振替・請求書）を確定 */
     async handleNonCardPayment() {
-        const methodLabel = PAYMENT_METHOD_OPTIONS.find(o => o.value === this.paymentMethod)?.label || this.paymentMethod;
+        const methodKey = this._currentMethodKey;
+        const meta      = this._allMethods.find(m => m.methodKey === methodKey);
+        const methodLabel = meta?.displayName
+            || FALLBACK_METHOD_OPTIONS.find(o => o.value === methodKey)?.label
+            || methodKey;
+
         this.isProcessing = true;
         try {
             await recordPayment({
@@ -188,6 +305,12 @@ export default class PaymentForm extends LightningElement {
         } finally {
             this.isProcessing = false;
         }
+    }
+
+    async handleAlternativeGateway() {
+        // コンビニ・Pay-easy などゲートウェイ経由の非カード手段
+        // 実際の処理はプロバイダーAPIで行うが、ここでは申請のみ記録
+        await this.handleNonCardPayment();
     }
 
     async handleDirectDebitDownload() {
@@ -235,19 +358,43 @@ export default class PaymentForm extends LightningElement {
     }
 
     async _onIframeMessage(event) {
-        // 同一オリジンからのメッセージのみ処理
         if (event.origin !== window.location.origin) return;
-
         const data = event.data;
-        if (!data || data.type !== 'PAYJP_OMISE_STRIPE_TOKEN') return;
+        if (!data) return;
 
-        const { token, paymentId, provider } = data;
-        if (!token || !paymentId) {
-            this.gatewayError = 'カードトークンの取得に失敗しました。';
-            return;
+        if (data.type === 'PAYJP_OMISE_STRIPE_TOKEN') {
+            const { token, paymentId, provider } = data;
+            if (!token || !paymentId) {
+                this.gatewayError = 'カードトークンの取得に失敗しました。';
+                return;
+            }
+            await this._processCardPayment(paymentId, provider, token);
+
+        } else if (data.type === 'ALT_GATEWAY_PROCEED') {
+            // コンビニ・Pay-easy・Konbini などの非カードゲートウェイ手段
+            const { paymentId, methodKey } = data;
+            const meta = this._allMethods.find(m => m.methodKey === methodKey);
+            const methodLabel = meta?.displayName || methodKey;
+            await this.handleNonCardPaymentDirect(paymentId, methodLabel);
         }
+    }
 
-        await this._processCardPayment(paymentId, provider, token);
+    async handleNonCardPaymentDirect(paymentId, methodLabel) {
+        this.isProcessing = true;
+        try {
+            await recordPayment({
+                paymentId,
+                transactionId: 'ALT-' + Date.now(),
+                paymentMethod: methodLabel
+            });
+            this.showToast('申請完了', `${methodLabel}での支払い申請が完了しました。`, 'success');
+            this.closeModal();
+            await this.loadPayments();
+        } catch (e) {
+            this.gatewayError = e?.body?.message || '処理中にエラーが発生しました。';
+        } finally {
+            this.isProcessing = false;
+        }
     }
 
     async _processCardPayment(paymentId, provider, token) {
@@ -255,13 +402,12 @@ export default class PaymentForm extends LightningElement {
         this.gatewayError = '';
         try {
             const result = await processPayment({
-                paymentId:   paymentId,
-                provider:    provider,
-                token:       token,
-                amount:      this.selectedPayment.Amount__c,
+                paymentId,
+                provider,
+                token,
+                amount:      this.totalPayAmount,
                 description: this.selectedPayment.PaymentType__c + ' - ' + this.selectedPayment.Name
             });
-
             if (result.success) {
                 this.showToast('支払い完了', 'クレジットカードでのお支払いが完了しました。', 'success');
                 this.closeModal();

@@ -28,7 +28,6 @@
                 <section role="dialog" aria-modal="true" class="slds-modal slds-fade-in-open">
                     <div class="slds-modal__container">
 
-                        <!-- ヘッダー -->
                         <header class="slds-modal__header">
                             <lightning-button-icon
                                 icon-name="utility:close"
@@ -39,38 +38,73 @@
                             <h2 class="slds-text-heading_medium">支払い手続き</h2>
                         </header>
 
-                        <!-- コンテンツ -->
                         <div class="slds-modal__content slds-p-around_medium">
 
-                            <!-- 支払い概要 -->
-                            <dl class="slds-dl_horizontal slds-m-bottom_medium">
-                                <dt class="slds-dl_horizontal__label slds-text-color_weak">種別</dt>
-                                <dd class="slds-dl_horizontal__detail">{selectedPayment.PaymentType__c}</dd>
-                                <dt class="slds-dl_horizontal__label slds-text-color_weak">金額</dt>
-                                <dd class="slds-dl_horizontal__detail slds-text-heading_small">{formattedAmount}</dd>
-                                <dt class="slds-dl_horizontal__label slds-text-color_weak">支払期限</dt>
-                                <dd class="slds-dl_horizontal__detail">{selectedPayment.DueDate__c}</dd>
-                            </dl>
+                            <!-- 金額内訳 -->
+                            <div class="slds-box slds-theme_shade slds-m-bottom_medium amount-breakdown">
+                                <dl class="slds-dl_horizontal">
+                                    <template if:true={hasBaseAmount}>
+                                        <dt class="slds-dl_horizontal__label slds-text-color_weak">基本金額</dt>
+                                        <dd class="slds-dl_horizontal__detail">{formattedBaseAmount}</dd>
+                                        <template if:true={hasPlatformFee}>
+                                            <dt class="slds-dl_horizontal__label slds-text-color_weak">{platformFeeDescription}</dt>
+                                            <dd class="slds-dl_horizontal__detail fee-text">+ {formattedPlatformFee}</dd>
+                                        </template>
+                                    </template>
+                                    <template if:true={hasMethodFee}>
+                                        <dt class="slds-dl_horizontal__label slds-text-color_weak">決済手段手数料</dt>
+                                        <dd class="slds-dl_horizontal__detail fee-text">+ {formattedMethodFee}</dd>
+                                    </template>
+                                    <dt class="slds-dl_horizontal__label total-label">合計お支払い金額</dt>
+                                    <dd class="slds-dl_horizontal__detail total-value">{formattedTotal}</dd>
+                                    <dt class="slds-dl_horizontal__label slds-text-color_weak">支払期限</dt>
+                                    <dd class="slds-dl_horizontal__detail">{selectedPayment.DueDate__c}</dd>
+                                </dl>
+                            </div>
 
                             <!-- 支払方法セレクター -->
-                            <lightning-combobox
-                                label="支払方法を選択"
-                                value={paymentMethod}
-                                options={paymentMethodOptions}
-                                onchange={handleMethodChange}
-                                class="slds-m-bottom_medium"
-                                required>
-                            </lightning-combobox>
+                            <template if:true={hasAllowedMethods}>
+                                <!-- 請求に利用可能な手段が指定されている場合 -->
+                                <div class="slds-m-bottom_medium">
+                                    <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_x-small">支払方法を選択してください</p>
+                                    <template for:each={allowedMethodOptions} for:item="opt">
+                                        <div key={opt.methodKey} class="method-option slds-m-bottom_x-small">
+                                            <input type="radio"
+                                                id={opt.radioId}
+                                                name="paymentMethodRadio"
+                                                value={opt.methodKey}
+                                                checked={opt.checked}
+                                                onchange={handleMethodRadioChange}
+                                                class="slds-radio"/>
+                                            <label for={opt.radioId} class="method-radio-label">
+                                                <span class="method-radio-name">{opt.displayName}</span>
+                                                <template if:true={opt.hasFee}>
+                                                    <span class="method-fee-badge">+ {opt.feeLabel}</span>
+                                                </template>
+                                            </label>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <template if:false={hasAllowedMethods}>
+                                <!-- 従来の汎用セレクター -->
+                                <lightning-combobox
+                                    label="支払方法を選択"
+                                    value={paymentMethod}
+                                    options={paymentMethodOptions}
+                                    onchange={handleMethodChange}
+                                    class="slds-m-bottom_medium"
+                                    required>
+                                </lightning-combobox>
+                            </template>
 
                             <!-- クレジットカード入力エリア（iframe） -->
                             <template if:true={showCardFrame}>
                                 <div class="slds-box slds-theme_shade slds-m-top_small card-frame-wrapper">
                                     <template if:true={isLoadingProvider}>
                                         <div class="slds-align_absolute-center slds-p-around_medium">
-                                            <lightning-spinner
-                                                alternative-text="読み込み中"
-                                                size="small">
-                                            </lightning-spinner>
+                                            <lightning-spinner alternative-text="読み込み中" size="small"></lightning-spinner>
                                             <p class="slds-m-top_small slds-text-color_weak">決済フォームを読み込んでいます...</p>
                                         </div>
                                     </template>
@@ -93,60 +127,69 @@
                                 </template>
                             </template>
 
-                            <!-- 銀行振込案内 -->
-                            <template if:true={isBankTransfer}>
+                            <!-- コンビニ・Pay-easy 案内（ゲートウェイ経由の非カード手段） -->
+                            <template if:true={showAlternativeGateway}>
                                 <div class="slds-box slds-theme_info slds-m-top_small">
                                     <p class="slds-text-body_regular">
                                         <lightning-icon icon-name="utility:info" size="x-small" class="slds-m-right_x-small"></lightning-icon>
-                                        銀行振込の場合は、事務局から振込先をメールでご案内します。
-                                        確認後、以下のボタンで申請を完了してください。
+                                        {selectedPayment.PaymentType__c} の支払い手続きを開始します。
+                                        決済プロバイダーの手順に従ってお支払いください。
                                     </p>
                                 </div>
                             </template>
 
-                            <!-- 口座振替案内 -->
-                            <template if:true={isDirectDebit}>
+                            <!-- 銀行振込・口座振替・請求書払い 案内 -->
+                            <template if:true={isBankTransfer}>
                                 <div class="slds-box slds-theme_info slds-m-top_small">
                                     <p class="slds-text-body_regular">
                                         <lightning-icon icon-name="utility:info" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                                        銀行振込の場合は、事務局から振込先をメールでご案内します。確認後、申請を完了してください。
+                                    </p>
+                                </div>
+                            </template>
+
+                            <template if:true={isDirectDebit}>
+                                <div class="slds-box slds-theme_info slds-m-top_small">
+                                    <p class="slds-text-body_regular slds-m-bottom_small">
+                                        <lightning-icon icon-name="utility:info" size="x-small" class="slds-m-right_x-small"></lightning-icon>
                                         口座振替申込書をダウンロードして、事務局へ郵送してください。
                                     </p>
-                                    <lightning-button
-                                        label="口座振替申込書をダウンロード"
-                                        icon-name="utility:download"
-                                        class="slds-m-top_small"
+                                    <lightning-button label="口座振替申込書をダウンロード" icon-name="utility:download"
                                         onclick={handleDirectDebitDownload}>
                                     </lightning-button>
                                 </div>
                             </template>
 
-                            <!-- 請求書払い案内 -->
                             <template if:true={isInvoice}>
                                 <div class="slds-box slds-theme_info slds-m-top_small">
                                     <p class="slds-text-body_regular">
                                         <lightning-icon icon-name="utility:info" size="x-small" class="slds-m-right_x-small"></lightning-icon>
-                                        請求書払いを選択しました。事務局から請求書をお送りします。
-                                        確認後、以下のボタンで申請を完了してください。
+                                        事務局から請求書をお送りします。確認後、申請を完了してください。
                                     </p>
                                 </div>
                             </template>
 
                         </div>
 
-                        <!-- フッター -->
                         <footer class="slds-modal__footer">
-                            <lightning-button
-                                label="キャンセル"
-                                onclick={closeModal}
-                                disabled={isProcessing}>
-                            </lightning-button>
+                            <lightning-button label="キャンセル" onclick={closeModal} disabled={isProcessing}></lightning-button>
                             <template if:false={showCardFrame}>
-                                <lightning-button
-                                    label="申請を完了する"
-                                    variant="brand"
-                                    onclick={handleNonCardPayment}
-                                    disabled={isProcessing}>
-                                </lightning-button>
+                                <template if:false={showAlternativeGateway}>
+                                    <lightning-button
+                                        label="申請を完了する"
+                                        variant="brand"
+                                        onclick={handleNonCardPayment}
+                                        disabled={isProcessing}>
+                                    </lightning-button>
+                                </template>
+                                <template if:true={showAlternativeGateway}>
+                                    <lightning-button
+                                        label="支払い手続きへ進む"
+                                        variant="brand"
+                                        onclick={handleAlternativeGateway}
+                                        disabled={isProcessing}>
+                                    </lightning-button>
+                                </template>
                             </template>
                         </footer>
 
