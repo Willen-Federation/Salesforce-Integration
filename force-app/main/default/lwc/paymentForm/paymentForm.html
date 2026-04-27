@@ -46,10 +46,55 @@
                                 class="slds-m-top_medium"
                                 required>
                             </lightning-combobox>
+
+                            <!-- GMOあおぞら バーチャル口座情報 -->
+                            <template if:true={isGmoAozora}>
+                                <div class="slds-m-top_medium">
+                                    <template if:false={virtualAccountInfo}>
+                                        <lightning-button
+                                            label="振込口座を発行する"
+                                            variant="neutral"
+                                            icon-name="utility:new"
+                                            onclick={handleGetVirtualAccount}
+                                            disabled={isIssuingAccount}>
+                                        </lightning-button>
+                                        <template if:true={isIssuingAccount}>
+                                            <lightning-spinner alternative-text="発行中" size="small" class="slds-m-left_small"></lightning-spinner>
+                                        </template>
+                                    </template>
+                                    <template if:true={virtualAccountInfo}>
+                                        <div class="slds-box slds-theme_shade slds-m-top_small">
+                                            <h4 class="slds-text-heading_small slds-m-bottom_small">振込先口座情報</h4>
+                                            <dl class="slds-dl_horizontal">
+                                                <dt class="slds-dl_horizontal__label">銀行名</dt>
+                                                <dd class="slds-dl_horizontal__detail">{virtualAccountInfo.bankName}</dd>
+                                                <dt class="slds-dl_horizontal__label">支店コード</dt>
+                                                <dd class="slds-dl_horizontal__detail">{virtualAccountInfo.branchCode}　{virtualAccountInfo.branchNameKana}</dd>
+                                                <dt class="slds-dl_horizontal__label">口座番号</dt>
+                                                <dd class="slds-dl_horizontal__detail slds-text-heading_small">{virtualAccountInfo.accountNumber}</dd>
+                                                <dt class="slds-dl_horizontal__label">口座名義</dt>
+                                                <dd class="slds-dl_horizontal__detail">{virtualAccountInfo.holderNameKana}</dd>
+                                                <dt class="slds-dl_horizontal__label">振込金額</dt>
+                                                <dd class="slds-dl_horizontal__detail">{formattedAmount}</dd>
+                                                <dt class="slds-dl_horizontal__label">振込期限</dt>
+                                                <dd class="slds-dl_horizontal__detail">{virtualAccountInfo.expiresAt}</dd>
+                                            </dl>
+                                            <p class="slds-text-body_small slds-m-top_small slds-theme_info slds-p-around_x-small">
+                                                入金確認後、自動的に支払い済みに更新されます。
+                                            </p>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
                         </div>
                         <footer class="slds-modal__footer">
                             <lightning-button label="キャンセル" onclick={closeModal}></lightning-button>
-                            <lightning-button label="支払いを確定" variant="brand" onclick={handleConfirmPayment} disabled={isProcessing}></lightning-button>
+                            <template if:false={isGmoAozora}>
+                                <lightning-button label="支払いを確定" variant="brand" onclick={handleConfirmPayment} disabled={isProcessing}></lightning-button>
+                            </template>
+                            <template if:true={isGmoAozora}>
+                                <lightning-button label="閉じる（振込完了後に自動更新）" variant="brand" onclick={closeModal}></lightning-button>
+                            </template>
                         </footer>
                     </div>
                 </section>

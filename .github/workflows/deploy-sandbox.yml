@@ -1,0 +1,86 @@
+name: Deploy to Sandbox
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'force-app/**'
+      - 'sfdx-project.json'
+
+  # 手動実行も可能
+  workflow_dispatch:
+    inputs:
+      test_level:
+        description: 'テストレベル'
+        required: true
+        default: 'RunLocalTests'
+        type: choice
+        options:
+          - RunLocalTests
+          - RunAllTestsInOrg
+          - NoTestRun
+
+jobs:
+  deploy-sandbox:
+    name: Deploy → Sandbox
+    runs-on: ubuntu-latest
+    environment: sandbox
+    concurrency:
+      group: deploy-sandbox
+      cancel-in-progress: false  # デプロイはキャンセルしない
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Salesforce CLI
+        run: |
+          npm install --global @salesforce/cli@latest
+          sf version
+
+      - name: Authenticate to Sandbox (JWT)
+        env:
+          SF_JWT_PRIVATE_KEY: ${{ secrets.SF_JWT_PRIVATE_KEY }}
+          SF_CONSUMER_KEY:    ${{ secrets.SF_CONSUMER_KEY_SANDBOX }}
+          SF_USERNAME:        ${{ secrets.SF_USERNAME_SANDBOX }}
+        run: |
+          echo "$SF_JWT_PRIVATE_KEY" > /tmp/server.key
+          sf org login jwt \
+            --client-id    "$SF_CONSUMER_KEY" \
+            --jwt-key-file /tmp/server.key \
+            --username     "$SF_USERNAME" \
+            --alias        sandbox \
+            --set-default
+          rm /tmp/server.key
+
+      - name: Deploy to Sandbox
+        run: |
+          TEST_LEVEL="${{ github.event.inputs.test_level || 'RunLocalTests' }}"
+          echo "Deploying with test level: $TEST_LEVEL"
+          sf project deploy start \
+            --source-dir force-app \
+            --target-org sandbox \
+            --test-level "$TEST_LEVEL" \
+            --wait 30 \
+            --verbose
+
+      - name: Show Apex test results
+        if: always()
+        run: |
+          sf apex get test \
+            --target-org sandbox \
+            --result-format human 2>/dev/null || true
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "✅ Sandbox deployment succeeded at $(date '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+
+      - name: Upload deploy results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-deploy-${{ github.run_number }}
+          path: .sf/
+          retention-days: 14

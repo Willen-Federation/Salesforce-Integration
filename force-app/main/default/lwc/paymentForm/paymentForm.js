@@ -3,12 +3,16 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getPaymentsByMember from '@salesforce/apex/PaymentController.getPaymentsByMember';
 import recordPayment from '@salesforce/apex/PaymentController.recordPayment';
 import issueReceipt from '@salesforce/apex/PaymentController.issueReceipt';
+import createVirtualAccount from '@salesforce/apex/GmoAozoraService.createVirtualAccount';
+import getVirtualAccountInfo from '@salesforce/apex/GmoAozoraService.getVirtualAccountInfo';
+import getDefaultProvider from '@salesforce/apex/GmoAozoraService.getDefaultProvider';
 
 const PAYMENT_METHOD_OPTIONS = [
-    { label: 'クレジットカード', value: 'クレジットカード' },
-    { label: '銀行振込',         value: '銀行振込' },
-    { label: '口座振替',         value: '口座振替' },
-    { label: '請求書払い',       value: '請求書払い' },
+    { label: 'GMOあおぞら銀行振込', value: 'GMOあおぞら銀行振込' },
+    { label: 'クレジットカード',     value: 'クレジットカード（Visa/Mastercard）' },
+    { label: '銀行振込',             value: '銀行振込' },
+    { label: '口座振替',             value: '口座振替' },
+    { label: '請求書払い',           value: '請求書払い' },
 ];
 
 const UNPAID_COLUMNS = [
@@ -35,8 +39,11 @@ export default class PaymentForm extends LightningElement {
     @track payments = [];
     @track selectedPayment;
     @track showModal = false;
-    @track paymentMethod = 'クレジットカード';
+    @track paymentMethod = 'GMOあおぞら銀行振込';
     @track isProcessing = false;
+    @track virtualAccountInfo = null;
+    @track isIssuingAccount = false;
+    _defaultProvider = 'GMOあおぞら';
 
     columns = UNPAID_COLUMNS;
     paidColumns = PAID_COLUMNS;
@@ -44,6 +51,14 @@ export default class PaymentForm extends LightningElement {
 
     connectedCallback() {
         this.loadPayments();
+        getDefaultProvider()
+            .then(provider => {
+                this._defaultProvider = provider || 'GMOあおぞら';
+                if (provider === 'GMOあおぞら') {
+                    this.paymentMethod = 'GMOあおぞら銀行振込';
+                }
+            })
+            .catch(() => {});
     }
 
     async loadPayments() {
@@ -67,6 +82,10 @@ export default class PaymentForm extends LightningElement {
     get hasUnpaidPayments() { return this.unpaidPayments.length > 0; }
     get hasPaidPayments()   { return this.paidPayments.length > 0; }
 
+    get isGmoAozora() {
+        return this.paymentMethod === 'GMOあおぞら銀行振込';
+    }
+
     get formattedAmount() {
         if (!this.selectedPayment) return '';
         return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' })
@@ -75,16 +94,49 @@ export default class PaymentForm extends LightningElement {
 
     handleRowAction(event) {
         this.selectedPayment = event.detail.row;
+        this.virtualAccountInfo = null;
         this.showModal = true;
+        if (this.isGmoAozora && this.selectedPayment.VirtualAccountNumber__c) {
+            this.loadExistingVirtualAccount();
+        }
+    }
+
+    async loadExistingVirtualAccount() {
+        try {
+            const info = await getVirtualAccountInfo({ paymentId: this.selectedPayment.Id });
+            if (info && info.accountNumber) {
+                this.virtualAccountInfo = info;
+            }
+        } catch (e) {
+            // ignore — user can issue manually
+        }
+    }
+
+    async handleGetVirtualAccount() {
+        this.isIssuingAccount = true;
+        try {
+            const info = await createVirtualAccount({ paymentId: this.selectedPayment.Id });
+            this.virtualAccountInfo = info;
+            this.showToast('口座発行完了', '振込先口座を発行しました。', 'success');
+        } catch (e) {
+            this.showToast('エラー', e?.body?.message || '口座発行に失敗しました。', 'error');
+        } finally {
+            this.isIssuingAccount = false;
+        }
     }
 
     handleMethodChange(event) {
         this.paymentMethod = event.detail.value;
+        this.virtualAccountInfo = null;
+        if (this.isGmoAozora && this.selectedPayment?.VirtualAccountNumber__c) {
+            this.loadExistingVirtualAccount();
+        }
     }
 
     closeModal() {
         this.showModal = false;
         this.selectedPayment = null;
+        this.virtualAccountInfo = null;
     }
 
     async handleConfirmPayment() {
