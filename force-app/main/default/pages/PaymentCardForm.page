@@ -1,0 +1,505 @@
+<apex:page showHeader="false" sidebar="false" standardStylesheets="false" docType="html-5.0" contentType="text/html">
+<html lang="ja">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>クレジットカード決済</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 14px;
+      color: #1d1d1f;
+      background: #f5f7fa;
+    }
+    .container {
+      padding: 24px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    .card-panel {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    .amount-display {
+      text-align: center;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #e8eaed;
+    }
+    .amount-label { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+    .amount-value { font-size: 28px; font-weight: 700; color: #1d1d1f; }
+    .provider-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #6b7280;
+      background: #f3f4f6;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-top: 8px;
+    }
+    .provider-badge .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #374151;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+    /* Elements container (PAY.JP / Stripe) */
+    #card-element {
+      background: #f9fafb;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 14px 12px;
+      transition: border-color 0.2s;
+    }
+    #card-element.focused { border-color: #1b96ff; box-shadow: 0 0 0 3px rgba(27,150,255,0.15); }
+    /* Manual form (Omise) */
+    .field-group { display: flex; gap: 12px; }
+    .field-group .form-field { flex: 1; }
+    .form-field { margin-bottom: 14px; }
+    .form-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 5px;
+    }
+    .form-field input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #f9fafb;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    .form-field input:focus {
+      border-color: #1b96ff;
+      box-shadow: 0 0 0 3px rgba(27,150,255,0.15);
+      background: #fff;
+    }
+    .form-field input::placeholder { color: #9ca3af; }
+    .error-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: #dc2626;
+      margin-top: 12px;
+      display: none;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .error-box.visible { display: flex; }
+    .error-icon { flex-shrink: 0; font-size: 15px; }
+    .success-box {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      display: none;
+    }
+    .success-box.visible { display: block; }
+    .success-icon { font-size: 36px; margin-bottom: 8px; }
+    .success-text { font-size: 15px; font-weight: 600; color: #16a34a; }
+    .submit-btn {
+      width: 100%;
+      padding: 13px;
+      background: #1b96ff;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: background 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .submit-btn:hover:not(:disabled) { background: #0176d3; }
+    .submit-btn:active:not(:disabled) { transform: scale(0.98); }
+    .submit-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    .spinner.visible { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .secure-note {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 14px;
+    }
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,0.85);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .loading-overlay.visible { display: flex; }
+    .loading-spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #1b96ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading-overlay" class="loading-overlay visible">
+  <div class="loading-spinner"></div>
+</div>
+
+<div class="container">
+  <div class="card-panel">
+    <!-- 金額表示 -->
+    <div class="amount-display">
+      <div class="amount-label">お支払い金額</div>
+      <div class="amount-value" id="amount-display">¥ ---</div>
+      <div class="provider-badge">
+        <span class="dot"></span>
+        <span id="provider-name">読み込み中...</span>
+        <span>セキュア決済</span>
+      </div>
+    </div>
+
+    <!-- カード入力フォーム -->
+    <div id="card-form-area">
+      <div class="section-title">カード情報</div>
+
+      <!-- PAY.JP / Stripe Elements用コンテナ -->
+      <div id="elements-container" style="display:none;">
+        <div id="card-element"></div>
+      </div>
+
+      <!-- Omise 手動入力フォーム -->
+      <div id="omise-container" style="display:none;">
+        <div class="form-field">
+          <label for="omise-name">カード名義人 (ローマ字)</label>
+          <input type="text" id="omise-name" placeholder="TARO YAMADA" autocomplete="cc-name"/>
+        </div>
+        <div class="form-field">
+          <label for="omise-number">カード番号</label>
+          <input type="text" id="omise-number" placeholder="1234 5678 9012 3456"
+                 maxlength="19" autocomplete="cc-number" inputmode="numeric"/>
+        </div>
+        <div class="field-group">
+          <div class="form-field">
+            <label for="omise-month">有効期限 (月)</label>
+            <input type="text" id="omise-month" placeholder="MM" maxlength="2" inputmode="numeric" autocomplete="cc-exp-month"/>
+          </div>
+          <div class="form-field">
+            <label for="omise-year">有効期限 (年)</label>
+            <input type="text" id="omise-year" placeholder="YY" maxlength="2" inputmode="numeric" autocomplete="cc-exp-year"/>
+          </div>
+          <div class="form-field">
+            <label for="omise-cvv">セキュリティコード</label>
+            <input type="text" id="omise-cvv" placeholder="CVV" maxlength="4" inputmode="numeric" autocomplete="cc-csc"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- エラー表示 -->
+      <div id="error-box" class="error-box">
+        <span class="error-icon">⚠</span>
+        <span id="error-message"></span>
+      </div>
+
+      <!-- 成功表示 -->
+      <div id="success-box" class="success-box">
+        <div class="success-icon">✓</div>
+        <div class="success-text">決済処理中...</div>
+      </div>
+
+      <!-- 支払いボタン -->
+      <button id="submit-btn" class="submit-btn">
+        <span class="spinner" id="btn-spinner"></span>
+        <span id="btn-text">カードで支払う</span>
+      </button>
+
+      <div class="secure-note">
+        🔒 カード情報はSSL暗号化で保護されています
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // URLパラメータ取得
+  var params = new URLSearchParams(window.location.search);
+  var provider   = params.get('provider')   || '';
+  var publicKey  = params.get('publicKey')  || '';
+  var amount     = parseInt(params.get('amount') || '0', 10);
+  var description = decodeURIComponent(params.get('description') || '');
+  var paymentId  = params.get('paymentId')  || '';
+  var originUrl  = decodeURIComponent(params.get('origin') || '');
+
+  var submitBtn    = document.getElementById('submit-btn');
+  var btnSpinner   = document.getElementById('btn-spinner');
+  var btnText      = document.getElementById('btn-text');
+  var errorBox     = document.getElementById('error-box');
+  var errorMsg     = document.getElementById('error-message');
+  var successBox   = document.getElementById('success-box');
+  var loadingOverlay = document.getElementById('loading-overlay');
+
+  // 金額・プロバイダー表示
+  document.getElementById('amount-display').textContent =
+    '¥' + amount.toLocaleString('ja-JP');
+  document.getElementById('provider-name').textContent = provider;
+
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorBox.classList.add('visible');
+    setLoading(false);
+  }
+
+  function hideError() {
+    errorBox.classList.remove('visible');
+  }
+
+  function setLoading(loading) {
+    submitBtn.disabled = loading;
+    btnSpinner.style.display = loading ? 'block' : 'none';
+    btnText.textContent = loading ? '処理中...' : 'カードで支払う';
+  }
+
+  function showSuccess() {
+    document.getElementById('card-form-area').style.opacity = '0.4';
+    document.getElementById('card-form-area').style.pointerEvents = 'none';
+    successBox.classList.add('visible');
+  }
+
+  function sendToken(token) {
+    showSuccess();
+    var target = originUrl || '*';
+    window.parent.postMessage({
+      type: 'PAYJP_OMISE_STRIPE_TOKEN',
+      token: token,
+      paymentId: paymentId,
+      provider: provider
+    }, target);
+  }
+
+  function loadScript(src, onload, onerror) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = onload;
+    s.onerror = onerror || function() {
+      showError('決済SDKの読み込みに失敗しました。ページを再読み込みしてください。');
+      loadingOverlay.classList.remove('visible');
+    };
+    document.head.appendChild(s);
+  }
+
+  // ---- PAY.JP v2 ----
+  function initPayjp() {
+    try {
+      var payjp = Payjp(publicKey);
+      var elements = payjp.elements();
+      var cardElement = elements.create('card', {
+        style: {
+          base: {
+            color: '#1d1d1f',
+            fontSize: '14px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+            '::placeholder': { color: '#9ca3af' }
+          },
+          invalid: { color: '#dc2626' }
+        }
+      });
+      cardElement.mount('#card-element');
+      cardElement.on('focus', function() {
+        document.getElementById('card-element').classList.add('focused');
+      });
+      cardElement.on('blur', function() {
+        document.getElementById('card-element').classList.remove('focused');
+      });
+      cardElement.on('change', function(event) {
+        if (event.error) {
+          showError(event.error.message);
+        } else {
+          hideError();
+        }
+      });
+      document.getElementById('elements-container').style.display = 'block';
+      loadingOverlay.classList.remove('visible');
+
+      submitBtn.addEventListener('click', function() {
+        hideError();
+        setLoading(true);
+        payjp.createToken(cardElement).then(function(result) {
+          if (result.error) {
+            showError(result.error.message);
+          } else {
+            sendToken(result.id);
+          }
+        }).catch(function(err) {
+          showError(err.message || '決済処理中にエラーが発生しました。');
+        });
+      });
+    } catch(e) {
+      showError('PAY.JP の初期化に失敗しました: ' + e.message);
+      loadingOverlay.classList.remove('visible');
+    }
+  }
+
+  // ---- Omise ----
+  function initOmise() {
+    try {
+      Omise.setPublicKey(publicKey);
+      document.getElementById('omise-container').style.display = 'block';
+      loadingOverlay.classList.remove('visible');
+
+      // カード番号のフォーマット
+      var numInput = document.getElementById('omise-number');
+      numInput.addEventListener('input', function() {
+        var val = this.value.replace(/\D/g, '').substring(0, 16);
+        this.value = val.match(/.{1,4}/g) ? val.match(/.{1,4}/g).join(' ') : val;
+      });
+
+      submitBtn.addEventListener('click', function() {
+        hideError();
+        var name   = document.getElementById('omise-name').value.trim();
+        var number = numInput.value.replace(/\s/g, '');
+        var month  = document.getElementById('omise-month').value.trim();
+        var year   = document.getElementById('omise-year').value.trim();
+        var cvv    = document.getElementById('omise-cvv').value.trim();
+
+        if (!name || !number || !month || !year || !cvv) {
+          showError('すべてのカード情報を入力してください。');
+          return;
+        }
+        setLoading(true);
+        Omise.createToken('card', {
+          name: name,
+          number: number,
+          expiration_month: parseInt(month, 10),
+          expiration_year: 2000 + parseInt(year, 10),
+          security_code: cvv
+        }, function(statusCode, response) {
+          if (statusCode === 200 && response.object === 'token') {
+            sendToken(response.id);
+          } else {
+            var msg = (response && response.message) ? response.message : 'カード情報が正しくありません。';
+            showError('Omise エラー: ' + msg);
+          }
+        });
+      });
+    } catch(e) {
+      showError('Omise の初期化に失敗しました: ' + e.message);
+      loadingOverlay.classList.remove('visible');
+    }
+  }
+
+  // ---- Stripe ----
+  function initStripe() {
+    try {
+      var stripe = Stripe(publicKey);
+      var elements = stripe.elements({
+        locale: 'ja'
+      });
+      var cardElement = elements.create('card', {
+        style: {
+          base: {
+            color: '#1d1d1f',
+            fontSize: '14px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+            '::placeholder': { color: '#9ca3af' }
+          },
+          invalid: { color: '#dc2626' }
+        }
+      });
+      cardElement.mount('#card-element');
+      cardElement.on('focus', function() {
+        document.getElementById('card-element').classList.add('focused');
+      });
+      cardElement.on('blur', function() {
+        document.getElementById('card-element').classList.remove('focused');
+      });
+      cardElement.on('change', function(event) {
+        if (event.error) {
+          showError(event.error.message);
+        } else {
+          hideError();
+        }
+      });
+      document.getElementById('elements-container').style.display = 'block';
+      loadingOverlay.classList.remove('visible');
+
+      submitBtn.addEventListener('click', function() {
+        hideError();
+        setLoading(true);
+        stripe.createToken(cardElement, {
+          currency: 'jpy'
+        }).then(function(result) {
+          if (result.error) {
+            showError(result.error.message);
+          } else {
+            sendToken(result.token.id);
+          }
+        }).catch(function(err) {
+          showError(err.message || '決済処理中にエラーが発生しました。');
+        });
+      });
+    } catch(e) {
+      showError('Stripe の初期化に失敗しました: ' + e.message);
+      loadingOverlay.classList.remove('visible');
+    }
+  }
+
+  // プロバイダー別にSDKを読み込み
+  if (!provider || !publicKey) {
+    loadingOverlay.classList.remove('visible');
+    showError('決済プロバイダーが設定されていません。管理者にお問い合わせください。');
+    submitBtn.disabled = true;
+    return;
+  }
+
+  if (provider === 'Pay.jp') {
+    loadScript('https://js.pay.jp/v2/pay.js', initPayjp);
+  } else if (provider === 'Omise') {
+    loadScript('https://cdn.omise.co/omise.js', initOmise);
+  } else if (provider === 'Stripe') {
+    loadScript('https://js.stripe.com/v3/', initStripe);
+  } else {
+    loadingOverlay.classList.remove('visible');
+    showError('未対応のプロバイダーです: ' + provider);
+    submitBtn.disabled = true;
+  }
+
+})();
+</script>
+</body>
+</html>
+</apex:page>

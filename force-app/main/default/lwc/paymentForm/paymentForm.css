@@ -1,0 +1,12 @@
+.card-frame-wrapper {
+    border-radius: 8px;
+    overflow: hidden;
+    padding: 0 !important;
+}
+
+.card-iframe {
+    width: 100%;
+    min-height: 380px;
+    border: none;
+    display: block;
+}
