@@ -269,6 +269,13 @@ public with sharing class EmailNotificationService {
         sendEmail(change.Member__r.Email__c, '【人事異動のご連絡】' + change.ChangeType__c, body);
     }
 
+    public static void sendAdminAlert(String subject, String body) {
+        PortalConfiguration__c config = PortalConfiguration__c.getOrgDefaults();
+        String adminEmail = config?.FromEmailAddress__c;
+        if (String.isBlank(adminEmail)) return;
+        sendEmail(adminEmail, subject, body);
+    }
+
     private static void sendEmail(String toAddress, String subject, String body) {
         if (String.isBlank(toAddress)) return;
 
