@@ -91,6 +91,123 @@ public with sharing class EmailNotificationService {
         sendEmail(payment.Member__r.Email__c, '【領収書発行】領収書が発行されました', body);
     }
 
+    // ----------------------------------------------------------------
+    // 審査ワークフロー通知
+    // ----------------------------------------------------------------
+
+    public static void sendReviewRequiredNotification(Id paymentId) {
+        Payment__c payment = [
+            SELECT Id, Name, Member__r.Email__c, Member__r.LastName__c, Member__r.FirstName__c,
+                   PaymentType__c, Amount__c, PaymentDate__c, TransactionId__c
+            FROM Payment__c WHERE Id = :paymentId WITH SECURITY_ENFORCED
+        ];
+
+        PortalConfiguration__c config = PortalConfiguration__c.getOrgDefaults();
+        String fromEmail = String.isNotBlank(config?.FromEmailAddress__c)
+            ? config.FromEmailAddress__c : null;
+
+        // 管理者への通知
+        String adminBody = '【審査依頼】入金確認後の審査が必要です。\n\n'
+            + '支払い番号: ' + payment.Name + '\n'
+            + '会員: ' + payment.Member__r.LastName__c + ' ' + payment.Member__r.FirstName__c + ' 様\n'
+            + '種別: ' + payment.PaymentType__c + '\n'
+            + '金額: ¥' + String.valueOf(payment.Amount__c.longValue()) + '\n'
+            + '入金日: ' + payment.PaymentDate__c.format() + '\n'
+            + (String.isNotBlank(payment.TransactionId__c) ? '決済ID: ' + payment.TransactionId__c + '\n' : '')
+            + '\n管理画面より審査を行ってください。';
+
+        if (String.isNotBlank(fromEmail)) {
+            sendEmail(fromEmail, '【審査依頼】' + payment.Member__r.LastName__c + ' 様 入金確認', adminBody);
+        }
+    }
+
+    public static void sendReviewResultNotification(Id paymentId, Boolean approved, String comment) {
+        Payment__c payment = [
+            SELECT Id, Name, Member__r.Email__c, Member__r.LastName__c, Member__r.FirstName__c,
+                   PaymentType__c, Amount__c, PaymentDate__c
+            FROM Payment__c WHERE Id = :paymentId WITH SECURITY_ENFORCED
+        ];
+
+        String status = approved ? '承認' : '却下';
+        String body = '【' + payment.Member__r.LastName__c + ' ' + payment.Member__r.FirstName__c + ' 様】\n\n'
+            + 'お支払いの審査結果をお知らせします。\n\n'
+            + '支払い番号: ' + payment.Name + '\n'
+            + '種別: ' + payment.PaymentType__c + '\n'
+            + '金額: ¥' + String.valueOf(payment.Amount__c.longValue()) + '\n'
+            + '審査結果: ' + (approved ? '承認されました' : '却下されました') + '\n'
+            + (String.isNotBlank(comment) ? 'コメント: ' + comment + '\n' : '')
+            + '\nご不明な点はポータルよりお問い合わせください。';
+
+        sendEmail(payment.Member__r.Email__c,
+            '【審査結果：' + status + '】' + payment.PaymentType__c, body);
+    }
+
+    // ----------------------------------------------------------------
+    // 定期支払い通知
+    // ----------------------------------------------------------------
+
+    public static void sendRecurringPaymentCreatedNotification(Id paymentId) {
+        Payment__c payment = [
+            SELECT Id, Name, Member__r.Email__c, Member__r.LastName__c, Member__r.FirstName__c,
+                   PaymentType__c, Amount__c, BaseAmount__c, PlatformFee__c,
+                   DueDate__c, Description__c, RecurringPlan__r.PlanName__c
+            FROM Payment__c WHERE Id = :paymentId WITH SECURITY_ENFORCED
+        ];
+
+        PortalConfiguration__c config = PortalConfiguration__c.getOrgDefaults();
+        String portalUrl = config?.PortalBaseUrl__c ?? '';
+
+        String planName = payment.RecurringPlan__r != null
+            ? payment.RecurringPlan__r.PlanName__c : '定期支払い';
+
+        String amountLine;
+        if (payment.PlatformFee__c != null && payment.PlatformFee__c > 0) {
+            amountLine = '基本金額: ¥' + String.valueOf(payment.BaseAmount__c.longValue()) + '\n'
+                + 'プラットフォーム利用手数料: ¥' + String.valueOf(payment.PlatformFee__c.longValue()) + '\n'
+                + '合計: ¥' + String.valueOf(payment.Amount__c.longValue());
+        } else {
+            amountLine = '金額: ¥' + String.valueOf(payment.Amount__c.longValue());
+        }
+
+        String body = '【' + payment.Member__r.LastName__c + ' ' + payment.Member__r.FirstName__c + ' 様】\n\n'
+            + '定期支払いプラン「' + planName + '」による請求が自動生成されました。\n\n'
+            + '支払い番号: ' + payment.Name + '\n'
+            + '種別: ' + payment.PaymentType__c + '\n'
+            + amountLine + '\n'
+            + '支払期限: ' + payment.DueDate__c.format() + '\n'
+            + (String.isNotBlank(payment.Description__c) ? '摘要: ' + payment.Description__c + '\n' : '')
+            + '\nポータルサイトよりお支払い手続きをお願いします。'
+            + (String.isNotBlank(portalUrl) ? '\n' + portalUrl : '');
+
+        sendEmail(payment.Member__r.Email__c, '【定期支払いのご案内】' + payment.PaymentType__c, body);
+    }
+
+    // ----------------------------------------------------------------
+    // ポータルアクセスリンク通知
+    // ----------------------------------------------------------------
+
+    public static void sendPortalAccessLinkNotification(Id memberId, String token) {
+        Member__c member = [
+            SELECT Id, Email__c, LastName__c, FirstName__c
+            FROM Member__c WHERE Id = :memberId WITH SECURITY_ENFORCED
+        ];
+
+        PortalConfiguration__c config = PortalConfiguration__c.getOrgDefaults();
+        String portalUrl = config?.PortalBaseUrl__c ?? '';
+        String link = String.isNotBlank(portalUrl)
+            ? portalUrl + '/mypage?token=' + token
+            : '/mypage?token=' + token;
+
+        String body = '【' + member.LastName__c + ' ' + member.FirstName__c + ' 様】\n\n'
+            + 'マイページへのアクセスリンクを発行しました。\n'
+            + '以下のリンクから72時間以内にアクセスしてください。\n\n'
+            + link + '\n\n'
+            + '※ このリンクは1回限り有効です。期限切れの場合は再度発行を依頼してください。\n'
+            + '※ 本メールに心当たりがない場合はお問い合わせください。';
+
+        sendEmail(member.Email__c, '【マイページ】アクセスリンクのご案内', body);
+    }
+
     public static void sendDonationConfirmation(Id donationId) {
         Donation__c don = [
             SELECT Id, Name, DonorEmail__c, DonorName__c, Amount__c,

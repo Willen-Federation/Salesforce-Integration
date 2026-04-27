@@ -231,4 +231,46 @@
         <visibleLines>3</visibleLines>
         <required>false</required>
     </fields>
+    <!-- 審査ワークフロー -->
+    <fields>
+        <fullName>ReviewRequired__c</fullName>
+        <label>審査が必要</label>
+        <type>Checkbox</type>
+        <defaultValue>false</defaultValue>
+        <trackHistory>true</trackHistory>
+    </fields>
+    <fields>
+        <fullName>ReviewStatus__c</fullName>
+        <label>審査ステータス</label>
+        <type>Picklist</type>
+        <required>false</required>
+        <trackHistory>true</trackHistory>
+        <valueSet>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>不要</fullName><label>不要</label><default>true</default></value>
+                <value><fullName>審査待ち</fullName><label>審査待ち</label><default>false</default></value>
+                <value><fullName>承認済</fullName><label>承認済</label><default>false</default></value>
+                <value><fullName>却下</fullName><label>却下</label><default>false</default></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>ReviewNotes__c</fullName>
+        <label>審査コメント</label>
+        <type>TextArea</type>
+        <required>false</required>
+        <trackHistory>false</trackHistory>
+    </fields>
+    <!-- 定期支払いリンク -->
+    <fields>
+        <fullName>RecurringPlan__c</fullName>
+        <label>定期支払いプラン</label>
+        <type>Lookup</type>
+        <referenceTo>RecurringPaymentPlan__c</referenceTo>
+        <relationshipLabel>生成済み支払い</relationshipLabel>
+        <relationshipName>GeneratedPayments</relationshipName>
+        <required>false</required>
+        <trackHistory>false</trackHistory>
+    </fields>
 </CustomObject>

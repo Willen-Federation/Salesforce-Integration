@@ -159,16 +159,38 @@ public with sharing class PaymentController {
 
     @AuraEnabled
     public static void recordPayment(Id paymentId, String transactionId, String paymentMethod) {
-        Payment__c payment = new Payment__c(
+        Payment__c prev = [
+            SELECT Id, PaymentStatus__c, ReviewRequired__c, Amount__c,
+                   PaymentType__c, Member__r.LastName__c, Member__r.FirstName__c
+            FROM Payment__c WHERE Id = :paymentId WITH SECURITY_ENFORCED
+        ];
+
+        String oldStatus = prev.PaymentStatus__c;
+
+        update new Payment__c(
             Id               = paymentId,
             PaymentStatus__c = '支払済み',
             PaymentDate__c   = Date.today(),
             TransactionId__c = transactionId,
             PaymentMethod__c = paymentMethod
         );
-        update payment;
 
+        // ステータス履歴に記録
+        PaymentStatusHistoryService.record(paymentId, oldStatus, '支払済み', '会員', '決済完了');
+
+        // 即時メール通知
         EmailNotificationService.sendPaymentConfirmation(paymentId);
+
+        // 即時Slack通知
+        PortalConfiguration__c cfg = PortalConfiguration__c.getInstance();
+        if (cfg.EnableSlackNotification__c == true && String.isNotBlank(cfg.SupportSlackChannelId__c)) {
+            notifySlackPaymentCompleted(paymentId);
+        }
+
+        // 審査が必要な場合は審査ワークフローを開始
+        if (prev.ReviewRequired__c == true) {
+            PaymentReviewService.initiateReview(paymentId, null);
+        }
     }
 
     @AuraEnabled
@@ -256,6 +278,43 @@ public with sharing class PaymentController {
         return feeMap.containsKey(memberType) ? feeMap.get(memberType) : 10000;
     }
 
+    // ----------------------------------------------------------------
+    // 支払いステータス履歴
+    // ----------------------------------------------------------------
+
+    @AuraEnabled(cacheable=true)
+    public static List<PaymentStatusHistory__c> getPaymentStatusHistory(Id paymentId) {
+        return PaymentStatusHistoryService.getHistory(paymentId);
+    }
+
+    // ----------------------------------------------------------------
+    // 定期支払いプラン（委譲）
+    // ----------------------------------------------------------------
+
+    @AuraEnabled(cacheable=true)
+    public static List<RecurringPaymentPlan__c> getRecurringPlans(Id memberId) {
+        return RecurringPaymentScheduler.getRecurringPlans(memberId);
+    }
+
+    @AuraEnabled
+    public static Id createRecurringPlan(Map<String, Object> planData) {
+        return RecurringPaymentScheduler.createRecurringPlan(planData);
+    }
+
+    @AuraEnabled
+    public static void toggleRecurringPlan(Id planId, Boolean active) {
+        RecurringPaymentScheduler.toggleRecurringPlan(planId, active);
+    }
+
+    @AuraEnabled
+    public static void deleteRecurringPlan(Id planId) {
+        RecurringPaymentScheduler.deleteRecurringPlan(planId);
+    }
+
+    // ----------------------------------------------------------------
+    // Private
+    // ----------------------------------------------------------------
+
     @Future(callout=true)
     private static void notifySlackPaymentCreated(Id paymentId) {
         try {
@@ -264,7 +323,7 @@ public with sharing class PaymentController {
                        PaymentType__c, Amount__c, DueDate__c
                 FROM Payment__c WHERE Id = :paymentId WITH SECURITY_ENFORCED
             ];
-            String msg = '【請求発行】' + p.Member__r.LastName__c + ' ' + p.Member__r.FirstName__c
+            String msg = ':bell: 【請求発行】' + p.Member__r.LastName__c + ' ' + p.Member__r.FirstName__c
                 + ' 様に ' + p.PaymentType__c + ' の請求を発行しました。'
                 + ' 金額: ¥' + String.valueOf(p.Amount__c.longValue())
                 + ' 期限: ' + p.DueDate__c.format();
@@ -272,6 +331,25 @@ public with sharing class PaymentController {
             SlackIntegrationService.sendMessage(cfg.SupportSlackChannelId__c, msg);
         } catch (Exception e) {
             System.debug('Slack notify failed: ' + e.getMessage());
+        }
+    }
+
+    @Future(callout=true)
+    private static void notifySlackPaymentCompleted(Id paymentId) {
+        try {
+            Payment__c p = [
+                SELECT Id, Name, Member__r.LastName__c, Member__r.FirstName__c,
+                       PaymentType__c, Amount__c, PaymentDate__c, PaymentMethod__c
+                FROM Payment__c WHERE Id = :paymentId WITH SECURITY_ENFORCED
+            ];
+            String msg = ':white_check_mark: 【入金確認】' + p.Member__r.LastName__c + ' '
+                + p.Member__r.FirstName__c
+                + ' 様の ' + p.PaymentType__c + '（¥' + p.Amount__c.longValue() + '）の入金を確認しました。'
+                + ' 支払方法: ' + p.PaymentMethod__c;
+            PortalConfiguration__c cfg = PortalConfiguration__c.getInstance();
+            SlackIntegrationService.sendMessage(cfg.SupportSlackChannelId__c, msg);
+        } catch (Exception e) {
+            System.debug('Slack payment completed notify failed: ' + e.getMessage());
         }
     }
 }

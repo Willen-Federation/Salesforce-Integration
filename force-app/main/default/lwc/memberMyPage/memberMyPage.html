@@ -1,0 +1,192 @@
+<template>
+    <div class="mypage-container slds-p-around_medium">
+
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="読み込み中" size="medium"></lightning-spinner>
+        </template>
+
+        <template if:true={errorMessage}>
+            <div class="slds-notify slds-notify_alert slds-alert_error slds-m-bottom_medium" role="alert">
+                <lightning-icon icon-name="utility:error" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                {errorMessage}
+            </div>
+        </template>
+
+        <template if:false={isLoading}>
+
+            <!-- ===== プロフィール ===== -->
+            <lightning-card title="マイプロフィール" icon-name="standard:contact">
+                <template if:true={profile}>
+                    <div class="slds-card__body slds-card__body_inner">
+                        <div class="slds-grid slds-wrap slds-gutters">
+                            <div class="slds-col slds-size_1-of-2 slds-large-size_1-of-4">
+                                <dt class="slds-text-color_weak slds-text-body_small">会員番号</dt>
+                                <dd class="slds-text-heading_small">{profile.memberNumber}</dd>
+                            </div>
+                            <div class="slds-col slds-size_1-of-2 slds-large-size_1-of-4">
+                                <dt class="slds-text-color_weak slds-text-body_small">氏名</dt>
+                                <dd class="slds-text-heading_small">{profile.lastName} {profile.firstName}</dd>
+                            </div>
+                            <div class="slds-col slds-size_1-of-2 slds-large-size_1-of-4">
+                                <dt class="slds-text-color_weak slds-text-body_small">会員種別</dt>
+                                <dd><span class="slds-badge">{profile.memberType}</span></dd>
+                            </div>
+                            <div class="slds-col slds-size_1-of-2 slds-large-size_1-of-4">
+                                <dt class="slds-text-color_weak slds-text-body_small">ステータス</dt>
+                                <dd><span class={memberStatusClass}>{profile.memberStatus}</span></dd>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </lightning-card>
+
+            <!-- ===== 支払い履歴 ===== -->
+            <lightning-card title="支払い履歴" icon-name="standard:payment_gateway" class="slds-m-top_medium">
+                <div class="slds-card__body slds-card__body_inner">
+
+                    <!-- 未払い -->
+                    <template if:true={hasUnpaid}>
+                        <div class="section-title slds-text-heading_small slds-m-bottom_small">
+                            <lightning-icon icon-name="utility:warning" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                            お支払い待ち
+                        </div>
+                        <template for:each={unpaidPayments} for:item="p">
+                            <div key={p.Id} class="payment-card slds-box slds-m-bottom_small unpaid">
+                                <div class="slds-grid slds-wrap slds-gutters_x-small slds-grid_vertical-align-center">
+                                    <div class="slds-col slds-grow">
+                                        <div class="slds-text-body_regular"><strong>{p.Name}</strong> — {p.PaymentType__c}</div>
+                                        <div class="slds-text-body_small slds-text-color_weak">期限: {p._formattedDueDate}</div>
+                                        <template if:true={p.ReviewRequired__c}>
+                                            <div class="slds-m-top_xx-small">
+                                                <span class={p._reviewBadge}>{p.ReviewStatus__c}</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <div class="slds-col slds-shrink slds-text-align_right">
+                                        <div class="slds-text-heading_small amount-unpaid">¥{p._formattedAmount}</div>
+                                        <lightning-button
+                                            label="支払う"
+                                            variant="brand"
+                                            size="small"
+                                            data-id={p.Id}
+                                            onclick={handlePayClick}
+                                            class="slds-m-top_xx-small">
+                                        </lightning-button>
+                                    </div>
+                                </div>
+                                <!-- 審査ステータス追跡 -->
+                                <template if:true={p._showTimeline}>
+                                    <div class="slds-m-top_small">
+                                        <lightning-button
+                                            label={p._timelineLabel}
+                                            variant="base"
+                                            size="small"
+                                            data-id={p.Id}
+                                            onclick={handleToggleTimeline}>
+                                        </lightning-button>
+                                        <template if:true={p._timelineOpen}>
+                                            <c-payment-timeline payment-id={p.Id}></c-payment-timeline>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </template>
+
+                    <!-- 支払済み -->
+                    <div class="section-title slds-text-heading_small slds-m-top_medium slds-m-bottom_small">
+                        <lightning-icon icon-name="utility:check" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                        支払済み
+                    </div>
+                    <template if:true={hasPaid}>
+                        <template for:each={paidPayments} for:item="p">
+                            <div key={p.Id} class="payment-card slds-box slds-m-bottom_x-small paid">
+                                <div class="slds-grid slds-wrap slds-gutters_x-small slds-grid_vertical-align-center">
+                                    <div class="slds-col slds-grow">
+                                        <div class="slds-text-body_regular"><strong>{p.Name}</strong> — {p.PaymentType__c}</div>
+                                        <div class="slds-text-body_small slds-text-color_weak">
+                                            支払日: {p._formattedPaymentDate} / {p.PaymentMethod__c}
+                                            <template if:true={p.RecurringPlan__r}>
+                                                / 定期: {p.RecurringPlan__r.PlanName__c}
+                                            </template>
+                                        </div>
+                                        <template if:true={p.ReviewRequired__c}>
+                                            <span class={p._reviewBadge}>{p.ReviewStatus__c}</span>
+                                        </template>
+                                    </div>
+                                    <div class="slds-col slds-shrink slds-text-align_right">
+                                        <div class="slds-text-body_regular">¥{p._formattedAmount}</div>
+                                        <template if:true={p.ReceiptIssued__c}>
+                                            <lightning-button
+                                                label="領収書"
+                                                variant="neutral"
+                                                size="small"
+                                                data-id={p.Id}
+                                                onclick={handleReceiptClick}
+                                                class="slds-m-top_xx-small">
+                                            </lightning-button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <!-- ステータス追跡 -->
+                                <div class="slds-m-top_x-small">
+                                    <lightning-button
+                                        label={p._timelineLabel}
+                                        variant="base"
+                                        size="small"
+                                        data-id={p.Id}
+                                        onclick={handleToggleTimeline}>
+                                    </lightning-button>
+                                    <template if:true={p._timelineOpen}>
+                                        <c-payment-timeline payment-id={p.Id}></c-payment-timeline>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </template>
+                    <template if:false={hasPaid}>
+                        <p class="slds-text-color_weak slds-text-body_small">支払済みの履歴がありません。</p>
+                    </template>
+                </div>
+            </lightning-card>
+
+            <!-- ===== 定期支払いプラン ===== -->
+            <lightning-card title="定期支払いプラン" icon-name="standard:opportunity" class="slds-m-top_medium">
+                <div class="slds-card__body slds-card__body_inner">
+                    <template if:true={hasRecurringPlans}>
+                        <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_striped">
+                            <thead>
+                                <tr class="slds-line-height_reset">
+                                    <th><div class="slds-truncate">プラン名</div></th>
+                                    <th><div class="slds-truncate">種別</div></th>
+                                    <th><div class="slds-truncate">金額</div></th>
+                                    <th><div class="slds-truncate">頻度</div></th>
+                                    <th><div class="slds-truncate">次回期限</div></th>
+                                    <th><div class="slds-truncate">状態</div></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={recurringPlans} for:item="plan">
+                                    <tr key={plan.Id}>
+                                        <td>{plan.PlanName__c}</td>
+                                        <td>{plan.PaymentType__c}</td>
+                                        <td>¥{plan._formattedAmount}</td>
+                                        <td>{plan.Frequency__c}</td>
+                                        <td>{plan._formattedNextDue}</td>
+                                        <td>
+                                            <span class={plan._statusClass}>{plan._statusLabel}</span>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </template>
+                    <template if:false={hasRecurringPlans}>
+                        <p class="slds-text-color_weak slds-text-body_small">定期支払いプランはありません。</p>
+                    </template>
+                </div>
+            </lightning-card>
+
+        </template>
+    </div>
+</template>

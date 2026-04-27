@@ -1,0 +1,109 @@
+<template>
+    <lightning-card title="入金後審査" icon-name="standard:approval">
+        <div class="slds-card__body slds-card__body_inner">
+
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="読み込み中" size="medium"></lightning-spinner>
+            </template>
+
+            <!-- タブ: 審査待ち / 処理済み -->
+            <lightning-tabset>
+                <lightning-tab label={pendingTabLabel} value="pending">
+                    <template if:false={isLoading}>
+                        <template if:true={hasPending}>
+                            <template for:each={pendingReviews} for:item="p">
+                                <div key={p.Id} class="review-card slds-box slds-m-bottom_small">
+                                    <div class="slds-grid slds-wrap slds-gutters slds-grid_vertical-align-center">
+                                        <div class="slds-col slds-grow">
+                                            <div class="slds-text-heading_small">{p.Name} — {p.PaymentType__c}</div>
+                                            <div class="slds-text-body_small slds-text-color_weak">
+                                                {p.Member__r.LastName__c} {p.Member__r.FirstName__c} 様 /
+                                                ¥{p._formattedAmount} /
+                                                入金日: {p._formattedPaymentDate}
+                                            </div>
+                                            <template if:true={p.ReviewNotes__c}>
+                                                <div class="slds-text-body_small slds-m-top_xx-small">申請備考: {p.ReviewNotes__c}</div>
+                                            </template>
+                                        </div>
+                                        <div class="slds-col slds-shrink">
+                                            <lightning-badge label={p.ReviewStatus__c} class="badge-pending"></lightning-badge>
+                                        </div>
+                                    </div>
+                                    <!-- 承認/却下アクション -->
+                                    <div class="slds-m-top_small">
+                                        <lightning-input
+                                            label="審査コメント"
+                                            value={p._comment}
+                                            data-id={p.Id}
+                                            onchange={handleCommentChange}
+                                            class="slds-m-bottom_x-small">
+                                        </lightning-input>
+                                        <lightning-button-group>
+                                            <lightning-button
+                                                label="承認"
+                                                variant="success"
+                                                icon-name="utility:check"
+                                                data-id={p.Id}
+                                                onclick={handleApprove}>
+                                            </lightning-button>
+                                            <lightning-button
+                                                label="却下"
+                                                variant="destructive"
+                                                icon-name="utility:ban"
+                                                data-id={p.Id}
+                                                onclick={handleReject}>
+                                            </lightning-button>
+                                        </lightning-button-group>
+                                    </div>
+                                </div>
+                            </template>
+                        </template>
+                        <template if:false={hasPending}>
+                            <div class="slds-p-around_medium slds-text-align_center slds-text-color_weak">
+                                審査待ちの支払いはありません。
+                            </div>
+                        </template>
+                    </template>
+                </lightning-tab>
+
+                <lightning-tab label="処理済み" value="history">
+                    <template if:false={isLoading}>
+                        <template if:true={hasHistory}>
+                            <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_striped">
+                                <thead>
+                                    <tr>
+                                        <th><div class="slds-truncate">支払い番号</div></th>
+                                        <th><div class="slds-truncate">会員</div></th>
+                                        <th><div class="slds-truncate">種別</div></th>
+                                        <th><div class="slds-truncate">金額</div></th>
+                                        <th><div class="slds-truncate">入金日</div></th>
+                                        <th><div class="slds-truncate">結果</div></th>
+                                        <th><div class="slds-truncate">コメント</div></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={reviewHistory} for:item="p">
+                                        <tr key={p.Id}>
+                                            <td>{p.Name}</td>
+                                            <td>{p.Member__r.LastName__c} {p.Member__r.FirstName__c}</td>
+                                            <td>{p.PaymentType__c}</td>
+                                            <td>¥{p._formattedAmount}</td>
+                                            <td>{p._formattedPaymentDate}</td>
+                                            <td><span class={p._resultBadge}>{p.ReviewStatus__c}</span></td>
+                                            <td class="slds-truncate">{p.ReviewNotes__c}</td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </template>
+                        <template if:false={hasHistory}>
+                            <div class="slds-p-around_medium slds-text-align_center slds-text-color_weak">
+                                処理済みの審査はありません。
+                            </div>
+                        </template>
+                    </template>
+                </lightning-tab>
+            </lightning-tabset>
+        </div>
+    </lightning-card>
+</template>
