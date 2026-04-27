@@ -238,6 +238,20 @@
         <length>255</length>
         <required>false</required>
     </fields>
+    <fields>
+        <fullName>GmoAozoraRefreshToken__c</fullName>
+        <label>GMOあおぞら リフレッシュトークン</label>
+        <type>Text</type>
+        <length>500</length>
+        <required>false</required>
+    </fields>
+    <fields>
+        <fullName>GmoAozoraRaId__c</fullName>
+        <label>GMOあおぞら 入金口座ID (raId)</label>
+        <type>Text</type>
+        <length>50</length>
+        <required>false</required>
+    </fields>
     <!-- Fincode Settings -->
     <fields>
         <fullName>FincodeShopId__c</fullName>

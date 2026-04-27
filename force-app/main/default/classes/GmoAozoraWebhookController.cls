@@ -2,6 +2,11 @@
  * GMOあおぞらネット銀行 入金通知（Webhook）受信エンドポイント。
  * Salesforce Site または Experience Cloud のゲスト URL として公開すること。
  * URL: /services/apexrest/gmo-aozora/webhook
+ *
+ * Webhook仕様:
+ *   Header: x-eventType = "va-deposit-transaction"
+ *   Header: x-webhook-signature = Base64(HMAC-SHA256(body, clientSecret))
+ *   Payload: { account: {...}, vaTransaction: { vaAccountNumber, depositAmount(String), vaId, ... } }
  */
 @RestResource(urlMapping='/gmo-aozora/webhook/*')
 global without sharing class GmoAozoraWebhookController {
@@ -13,42 +18,53 @@ global without sharing class GmoAozoraWebhookController {
         res.addHeader('Content-Type', 'application/json');
 
         try {
-            String rawBody = req.requestBody.toString();
+            String rawBody   = req.requestBody.toString();
+            String eventType = req.headers.get('x-eventType');
+            String signature = req.headers.get('x-webhook-signature');
 
-            // ── 署名検証 ──────────────────────────────────────────
-            if (!verifyHmacSignature(rawBody, req.headers.get('X-Gmo-Signature'))) {
+            // ── 署名検証（Base64エンコードされたHMAC-SHA256）──────────
+            if (!verifyHmacSignature(rawBody, signature)) {
                 res.statusCode   = 401;
                 res.responseBody = Blob.valueOf('{"error":"invalid_signature"}');
                 return;
             }
 
-            Map<String, Object> payload = (Map<String, Object>) JSON.deserializeUntyped(rawBody);
-
-            // ── 入金通知の種別確認（振込入金のみ処理）───────────────
-            String notificationType = (String) payload.get('notificationType');
-            if (notificationType != null && notificationType != 'DEPOSIT') {
+            // ── 振込入金口座への入金イベントのみ処理 ─────────────────
+            if (eventType != 'va-deposit-transaction') {
                 res.statusCode   = 200;
-                res.responseBody = Blob.valueOf('{"status":"skipped","reason":"not_deposit"}');
+                res.responseBody = Blob.valueOf('{"status":"ignored"}');
                 return;
             }
 
-            // ── ペイロード解析 ────────────────────────────────────
-            String  virtualAccountNumber = (String) payload.get('accountNumber');
-            String  transferId           = (String) payload.get('virtualAccountId');
-            Decimal depositAmount        = toDecimal(payload.get('depositAmount'));
-            String  depositDateStr       = (String) payload.get('depositDate');
+            Map<String, Object> payload = (Map<String, Object>) JSON.deserializeUntyped(rawBody);
+            Map<String, Object> vaTx    = (Map<String, Object>) payload.get('vaTransaction');
 
-            if (String.isBlank(virtualAccountNumber) || depositAmount == null) {
+            if (vaTx == null) {
                 res.statusCode   = 400;
-                res.responseBody = Blob.valueOf('{"error":"missing_required_fields"}');
+                res.responseBody = Blob.valueOf('{"error":"missing_vaTransaction"}');
                 return;
             }
 
-            // ── 対応する Payment__c を特定 ────────────────────────
+            // ── ペイロード解析（vaTransactionオブジェクトから取得）────
+            String  vaAccountNumber  = (String) vaTx.get('vaAccountNumber');
+            String  depositAmountStr = (String) vaTx.get('depositAmount');
+            String  vaId             = (String) vaTx.get('vaId');
+            String  transactionDate  = (String) vaTx.get('transactionDate');
+
+            if (String.isBlank(vaAccountNumber)) {
+                res.statusCode   = 400;
+                res.responseBody = Blob.valueOf('{"error":"missing_vaAccountNumber"}');
+                return;
+            }
+
+            Decimal depositAmount = String.isNotBlank(depositAmountStr)
+                ? Decimal.valueOf(depositAmountStr) : 0;
+
+            // ── 対応する Payment__c を特定 ────────────────────────────
             List<Payment__c> payments = [
                 SELECT Id, Amount__c, Member__c, PaymentStatus__c, GmoTransferId__c
                 FROM Payment__c
-                WHERE VirtualAccountNumber__c = :virtualAccountNumber
+                WHERE VirtualAccountNumber__c = :vaAccountNumber
                   AND PaymentStatus__c = '未払い'
                 ORDER BY CreatedDate ASC
                 LIMIT 1
@@ -56,13 +72,13 @@ global without sharing class GmoAozoraWebhookController {
 
             if (payments.isEmpty()) {
                 res.statusCode   = 200;
-                res.responseBody = Blob.valueOf('{"status":"no_match","accountNumber":"' + virtualAccountNumber + '"}');
+                res.responseBody = Blob.valueOf('{"status":"no_match","vaAccountNumber":"' + vaAccountNumber + '"}');
                 return;
             }
 
             Payment__c payment = payments[0];
 
-            // ── 不足入金チェック ──────────────────────────────────
+            // ── 不足入金チェック ──────────────────────────────────────
             if (depositAmount < payment.Amount__c) {
                 handleShortPayment(payment, depositAmount);
                 res.statusCode   = 200;
@@ -70,17 +86,21 @@ global without sharing class GmoAozoraWebhookController {
                 return;
             }
 
-            // ── 正常入金: 支払済みに更新 ─────────────────────────
+            // ── 正常入金: 支払済みに更新 ──────────────────────────────
+            Date paymentDate = null;
+            if (String.isNotBlank(transactionDate)) {
+                try { paymentDate = Date.valueOf(transactionDate); } catch (Exception ex) {}
+            }
+
             update new Payment__c(
-                Id                   = payment.Id,
-                PaymentStatus__c     = '支払済み',
-                PaymentDate__c       = Date.today(),
+                Id                    = payment.Id,
+                PaymentStatus__c      = '支払済み',
+                PaymentDate__c        = paymentDate != null ? paymentDate : Date.today(),
                 DepositConfirmedAt__c = Datetime.now(),
-                DepositAmount__c     = depositAmount,
-                GmoTransferId__c     = String.isNotBlank(transferId) ? transferId : payment.GmoTransferId__c
+                DepositAmount__c      = depositAmount,
+                GmoTransferId__c      = String.isNotBlank(vaId) ? vaId : payment.GmoTransferId__c
             );
 
-            // 確認メール送信（非同期で DML 後に実行）
             sendConfirmationAsync(payment.Id);
 
             res.statusCode   = 200;
@@ -93,23 +113,21 @@ global without sharing class GmoAozoraWebhookController {
         }
     }
 
-    // ── HMAC-SHA256 署名検証 ──────────────────────────────────────
+    // ── HMAC-SHA256 署名検証 ──────────────────────────────────────────
+    // 正しいエンコード: Base64(HMAC-SHA256(body, webhookSecret))
     private static Boolean verifyHmacSignature(String body, String signature) {
         PortalConfiguration__c cfg = PortalConfiguration__c.getInstance();
-        String webhookSecret = cfg.GmoAozoraWebhookSecret__c;
+        String secret = cfg?.GmoAozoraWebhookSecret__c;
 
-        // シークレット未設定 = 開発環境として検証スキップ
-        if (String.isBlank(webhookSecret)) return true;
-        if (String.isBlank(signature))     return false;
+        if (String.isBlank(secret)) return true;
+        if (String.isBlank(signature)) return false;
 
-        Blob   hmac     = Crypto.generateMac('HmacSHA256', Blob.valueOf(body), Blob.valueOf(webhookSecret));
-        String expected = EncodingUtil.convertToHex(hmac);
-
-        // タイミング攻撃対策: 定長比較
-        return MessageDigest.isEqual(expected.toLowerCase(), signature.toLowerCase());
+        Blob   hmac     = Crypto.generateMac('HmacSHA256', Blob.valueOf(body), Blob.valueOf(secret));
+        String expected = EncodingUtil.base64Encode(hmac);
+        return expected == signature;
     }
 
-    // ── 不足入金処理: 管理者アラートを送信 ───────────────────────
+    // ── 不足入金処理: 管理者アラートを送信 ───────────────────────────
     private static void handleShortPayment(Payment__c payment, Decimal received) {
         String subject = '【要確認】不足入金が発生しました';
         String body    = '支払レコード: ' + payment.Id + '\n'
@@ -120,19 +138,9 @@ global without sharing class GmoAozoraWebhookController {
         EmailNotificationService.sendAdminAlert(subject, body);
     }
 
-    // ── 確認メール送信を @Future で DML 後に実行 ──────────────────
+    // ── 確認メール送信を @Future で DML 後に実行 ──────────────────────
     @Future
     private static void sendConfirmationAsync(Id paymentId) {
         EmailNotificationService.sendPaymentConfirmation(paymentId);
-    }
-
-    // ── Object → Decimal 安全変換 ────────────────────────────────
-    private static Decimal toDecimal(Object val) {
-        if (val == null) return null;
-        try {
-            return Decimal.valueOf(String.valueOf(val));
-        } catch (Exception e) {
-            return null;
-        }
     }
 }

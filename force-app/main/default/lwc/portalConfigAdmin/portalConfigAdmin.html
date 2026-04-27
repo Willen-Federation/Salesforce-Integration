@@ -96,6 +96,12 @@
                         <div class="slds-col slds-size_1-of-2 slds-m-top_small">
                             <lightning-input type="password" label="Webhookシークレット" data-key="gmoAozoraWebhookSecret" onchange={handleChange} placeholder="入金通知Webhook署名検証キー"></lightning-input>
                         </div>
+                        <div class="slds-col slds-size_1-of-2 slds-p-right_small slds-m-top_small">
+                            <lightning-input label="入金口座ID (raId)" data-key="gmoAozoraRaId" value={config.gmoAozoraRaId} onchange={handleChange} placeholder="101011234567"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-m-top_small">
+                            <lightning-input type="password" label="リフレッシュトークン" data-key="gmoAozoraRefreshToken" onchange={handleChange} placeholder="OAuth2認証後に取得したリフレッシュトークン"></lightning-input>
+                        </div>
                     </div>
                 </lightning-accordion-section>
 

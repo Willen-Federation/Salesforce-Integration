@@ -15,6 +15,7 @@ public with sharing class PortalConfigController {
         @AuraEnabled public String defaultPaymentProvider;
         @AuraEnabled public String gmoAozoraMode;
         @AuraEnabled public String gmoAozoraClientId;
+        @AuraEnabled public String gmoAozoraRaId;
         @AuraEnabled public Boolean enableDonation;
         @AuraEnabled public Boolean enableSlackNotification;
         @AuraEnabled public Decimal annualFeeIndividual;
@@ -41,6 +42,7 @@ public with sharing class PortalConfigController {
         data.defaultPaymentProvider  = config.DefaultPaymentProvider__c;
         data.gmoAozoraMode           = config.GmoAozoraMode__c;
         data.gmoAozoraClientId       = config.GmoAozoraClientId__c;
+        data.gmoAozoraRaId           = config.GmoAozoraRaId__c;
         data.enableDonation          = config.EnableDonation__c;
         data.enableSlackNotification = config.EnableSlackNotification__c;
         data.annualFeeIndividual     = config.AnnualFeeIndividual__c;
@@ -87,6 +89,8 @@ public with sharing class PortalConfigController {
         if (settings.containsKey('gmoAozoraClientId'))      config.GmoAozoraClientId__c          = (String)  settings.get('gmoAozoraClientId');
         if (settings.containsKey('gmoAozoraClientSecret'))  config.GmoAozoraClientSecret__c      = (String)  settings.get('gmoAozoraClientSecret');
         if (settings.containsKey('gmoAozoraWebhookSecret')) config.GmoAozoraWebhookSecret__c     = (String)  settings.get('gmoAozoraWebhookSecret');
+        if (settings.containsKey('gmoAozoraRefreshToken'))  config.GmoAozoraRefreshToken__c      = (String)  settings.get('gmoAozoraRefreshToken');
+        if (settings.containsKey('gmoAozoraRaId'))          config.GmoAozoraRaId__c              = (String)  settings.get('gmoAozoraRaId');
         if (settings.containsKey('enableDonation'))        config.EnableDonation__c           = (Boolean) settings.get('enableDonation');
         if (settings.containsKey('enableSlack'))           config.EnableSlackNotification__c  = (Boolean) settings.get('enableSlack');
         if (settings.containsKey('annualFeeIndividual'))   config.AnnualFeeIndividual__c      = Decimal.valueOf(String.valueOf(settings.get('annualFeeIndividual')));
