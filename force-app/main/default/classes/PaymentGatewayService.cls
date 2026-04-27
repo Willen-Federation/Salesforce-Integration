@@ -3,10 +3,10 @@ public with sharing class PaymentGatewayService {
     public class GatewayException extends Exception {}
 
     public class ChargeResult {
-        public Boolean success;
-        public String  transactionId;
-        public String  provider;
-        public String  failureMessage;
+        @AuraEnabled public Boolean success;
+        @AuraEnabled public String  transactionId;
+        @AuraEnabled public String  provider;
+        @AuraEnabled public String  failureMessage;
     }
 
     @AuraEnabled
@@ -170,5 +170,31 @@ public with sharing class PaymentGatewayService {
     public static String getDirectDebitFormUrl() {
         PortalConfiguration__c config = PortalConfiguration__c.getInstance();
         return config.DirectDebitFormUrl__c;
+    }
+
+    /**
+     * Returns the active payment provider name and its public key.
+     * Priority: Pay.jp → Omise → Stripe
+     */
+    @AuraEnabled(cacheable=true)
+    public static Map<String, String> getProviderConfig() {
+        PortalConfiguration__c config = PortalConfiguration__c.getInstance();
+        Map<String, String> result = new Map<String, String>{
+            'provider'  => 'none',
+            'publicKey' => ''
+        };
+
+        if (String.isNotBlank(config.PayjpPublicKey__c) && String.isNotBlank(config.PayjpSecretKey__c)) {
+            result.put('provider',  'Pay.jp');
+            result.put('publicKey', config.PayjpPublicKey__c);
+        } else if (String.isNotBlank(config.OmisePublicKey__c) && String.isNotBlank(config.OmiseSecretKey__c)) {
+            result.put('provider',  'Omise');
+            result.put('publicKey', config.OmisePublicKey__c);
+        } else if (String.isNotBlank(config.StripePublicKey__c) && String.isNotBlank(config.StripeSecretKey__c)) {
+            result.put('provider',  'Stripe');
+            result.put('publicKey', config.StripePublicKey__c);
+        }
+
+        return result;
     }
 }

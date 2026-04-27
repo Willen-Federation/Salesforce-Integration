@@ -1,0 +1,40 @@
+.card-frame-wrapper {
+    border-radius: 8px;
+    overflow: hidden;
+    padding: 0 !important;
+}
+
+.card-iframe {
+    width: 100%;
+    min-height: 380px;
+    border: none;
+    display: block;
+}
+
+.amount-breakdown {
+    border-radius: 8px;
+}
+
+.fee-text { color: #e07b39; font-weight: 500; }
+.total-label { font-weight: 700; border-top: 1px solid #c9c9c9; padding-top: 6px; }
+.total-value { font-size: 16px; font-weight: 700; color: #1b96ff; border-top: 1px solid #c9c9c9; padding-top: 6px; }
+
+.method-option { display: flex; align-items: center; }
+.method-radio-label {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 6px;
+    font-size: 14px;
+}
+.method-radio-name { font-weight: 500; }
+.method-fee-badge {
+    background: #fff3e0;
+    color: #e07b39;
+    border: 1px solid #f5c28d;
+    border-radius: 12px;
+    padding: 1px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}

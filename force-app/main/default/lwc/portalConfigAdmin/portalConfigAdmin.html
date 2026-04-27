@@ -201,11 +201,103 @@
                         </div>
                     </div>
                 </lightning-accordion-section>
+
             </lightning-accordion>
+
 
             <div class="slds-m-top_medium slds-align_absolute-center">
                 <lightning-button variant="brand" label="設定を保存" onclick={handleSave} disabled={isLoading}></lightning-button>
             </div>
         </div>
     </lightning-card>
+
+    <!-- 手数料ルール管理 -->
+    <div class="slds-m-top_medium">
+        <c-fee-rule-admin></c-fee-rule-admin>
+    </div>
+
+    <!-- 定期支払いスケジューラー設定 -->
+    <div class="slds-m-top_medium">
+        <lightning-card title="定期支払いスケジューラー" icon-name="standard:scheduler_resource">
+            <div class="slds-card__body slds-card__body_inner">
+                <template if:true={schedulerLoading}>
+                    <lightning-spinner alternative-text="確認中" size="small"></lightning-spinner>
+                </template>
+                <template if:false={schedulerLoading}>
+                    <div class="slds-grid slds-gutters slds-grid_vertical-align-center">
+                        <div class="slds-col slds-grow">
+                            <template if:true={schedulerStatus.isScheduled}>
+                                <div class="slds-media slds-media_center">
+                                    <div class="slds-media__figure">
+                                        <lightning-icon icon-name="utility:check" size="small" variant="success"></lightning-icon>
+                                    </div>
+                                    <div class="slds-media__body">
+                                        <p class="slds-text-body_regular">
+                                            <strong>スケジューラーは有効です</strong>
+                                            <span class="slds-badge slds-badge_lightest slds-m-left_x-small">{schedulerStatus.state}</span>
+                                        </p>
+                                        <p class="slds-text-body_small slds-text-color_weak">
+                                            次回実行: {schedulerStatus.nextFireTime}
+                                        </p>
+                                        <p class="slds-text-body_small slds-text-color_weak">
+                                            前回実行: {schedulerStatus.previousFireTime}
+                                        </p>
+                                    </div>
+                                </div>
+                            </template>
+                            <template if:false={schedulerStatus.isScheduled}>
+                                <div class="slds-media slds-media_center">
+                                    <div class="slds-media__figure">
+                                        <lightning-icon icon-name="utility:warning" size="small" variant="warning"></lightning-icon>
+                                    </div>
+                                    <div class="slds-media__body">
+                                        <p class="slds-text-body_regular">
+                                            <strong>スケジューラーは無効です</strong>
+                                        </p>
+                                        <p class="slds-text-body_small slds-text-color_weak">
+                                            定期支払いプランによる請求の自動生成が行われません。
+                                            有効化すると毎日午前1時に自動実行されます。
+                                        </p>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        <div class="slds-col slds-shrink">
+                            <template if:true={schedulerStatus.isScheduled}>
+                                <lightning-button
+                                    label="スケジューラーを無効化"
+                                    variant="destructive-text"
+                                    icon-name="utility:stop"
+                                    onclick={handleDisableScheduler}>
+                                </lightning-button>
+                            </template>
+                            <template if:false={schedulerStatus.isScheduled}>
+                                <lightning-button
+                                    label="スケジューラーを有効化"
+                                    variant="brand"
+                                    icon-name="utility:play"
+                                    onclick={handleEnableScheduler}>
+                                </lightning-button>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </lightning-card>
+    </div>
+
+    <!-- 定期支払いプラン管理 -->
+    <div class="slds-m-top_medium">
+        <c-recurring-payment-admin></c-recurring-payment-admin>
+    </div>
+
+    <!-- 入金後審査管理 -->
+    <div class="slds-m-top_medium">
+        <c-payment-review-admin></c-payment-review-admin>
+    </div>
+
+    <!-- 一括通知配信 -->
+    <div class="slds-m-top_medium">
+        <c-bulk-notification-admin></c-bulk-notification-admin>
+    </div>
 </template>

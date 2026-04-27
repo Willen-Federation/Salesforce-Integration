@@ -1,0 +1,20 @@
+.mypage-container {
+    max-width: 960px;
+    margin: 0 auto;
+}
+.payment-card {
+    border-radius: 4px;
+}
+.payment-card.unpaid {
+    border-left: 4px solid #e87722;
+}
+.payment-card.paid {
+    border-left: 4px solid #2e844a;
+}
+.amount-unpaid {
+    color: #e87722;
+    font-weight: 700;
+}
+.section-title {
+    color: #16325c;
+}

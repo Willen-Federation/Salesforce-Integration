@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>手数料ルール</label>
+    <pluralLabel>手数料ルール</pluralLabel>
+    <nameField>
+        <label>手数料ルール番号</label>
+        <type>AutoNumber</type>
+        <displayFormat>FEE-{0000000}</displayFormat>
+        <startingNumber>1</startingNumber>
+    </nameField>
+    <deploymentStatus>Deployed</deploymentStatus>
+    <sharingModel>ReadWrite</sharingModel>
+    <enableReports>true</enableReports>
+    <enableSearch>true</enableSearch>
+
+    <fields>
+        <fullName>RuleName__c</fullName>
+        <label>ルール名称</label>
+        <type>Text</type>
+        <length>100</length>
+        <required>true</required>
+    </fields>
+
+    <fields>
+        <fullName>RuleType__c</fullName>
+        <label>適用種別</label>
+        <type>Picklist</type>
+        <required>true</required>
+        <valueSet>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>決済手段別</fullName><label>決済手段別</label><default>false</default></value>
+                <value><fullName>カテゴリ別</fullName><label>カテゴリ別</label><default>false</default></value>
+                <value><fullName>全支払い共通</fullName><label>全支払い共通</label><default>false</default></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+
+    <!-- 決済手段別の場合に使用 -->
+    <fields>
+        <fullName>TargetMethodKey__c</fullName>
+        <label>対象決済手段キー</label>
+        <type>Text</type>
+        <length>100</length>
+        <required>false</required>
+        <inlineHelpText>例: payjp_card, omise_convenience_store, stripe_konbini, bank_transfer など。複数の場合はセミコロン区切り</inlineHelpText>
+    </fields>
+
+    <!-- カテゴリ別の場合に使用 -->
+    <fields>
+        <fullName>TargetCategory__c</fullName>
+        <label>対象支払種別</label>
+        <type>MultiselectPicklist</type>
+        <required>false</required>
+        <visibleLines>4</visibleLines>
+        <valueSet>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>年会費</fullName><label>年会費</label><default>false</default></value>
+                <value><fullName>個別利用料</fullName><label>個別利用料</label><default>false</default></value>
+                <value><fullName>イベント参加費</fullName><label>イベント参加費</label><default>false</default></value>
+                <value><fullName>その他</fullName><label>その他</label><default>false</default></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+
+    <fields>
+        <fullName>FeeType__c</fullName>
+        <label>手数料種別</label>
+        <type>Picklist</type>
+        <required>true</required>
+        <valueSet>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>料率（%）</fullName><label>料率（%）</label><default>false</default></value>
+                <value><fullName>固定額（円）</fullName><label>固定額（円）</label><default>false</default></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+
+    <fields>
+        <fullName>FeeValue__c</fullName>
+        <label>手数料値</label>
+        <type>Number</type>
+        <precision>10</precision>
+        <scale>2</scale>
+        <required>true</required>
+        <inlineHelpText>料率の場合は % 値（例: 3.5）、固定額の場合は円額（例: 190）</inlineHelpText>
+    </fields>
+
+    <fields>
+        <fullName>FeeLabel__c</fullName>
+        <label>表示ラベル</label>
+        <type>Text</type>
+        <length>100</length>
+        <required>false</required>
+        <inlineHelpText>支払い画面・メールに表示される手数料名称。空白の場合はルール名称を使用</inlineHelpText>
+    </fields>
+
+    <fields>
+        <fullName>IsEnabled__c</fullName>
+        <label>有効</label>
+        <type>Checkbox</type>
+        <defaultValue>true</defaultValue>
+        <required>false</required>
+    </fields>
+
+    <fields>
+        <fullName>SortOrder__c</fullName>
+        <label>表示順</label>
+        <type>Number</type>
+        <precision>4</precision>
+        <scale>0</scale>
+        <required>false</required>
+    </fields>
+</CustomObject>

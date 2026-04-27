@@ -1,0 +1,183 @@
+<template>
+    <lightning-card title="定期支払いプラン管理" icon-name="standard:opportunity">
+        <div slot="actions">
+            <lightning-button-group>
+                <lightning-button
+                    label="新規プラン追加"
+                    variant="brand"
+                    icon-name="utility:add"
+                    onclick={handleNew}>
+                </lightning-button>
+                <lightning-button
+                    label="今すぐ実行"
+                    variant="neutral"
+                    icon-name="utility:refresh"
+                    onclick={handleRunNow}
+                    title="期限が到来したプランの請求を即時生成します">
+                </lightning-button>
+            </lightning-button-group>
+        </div>
+        <div class="slds-card__body slds-card__body_inner">
+            <template if:false={schedulerEnabled}>
+                <div class="slds-notify slds-notify_alert slds-alert_warning slds-m-bottom_small" role="alert">
+                    <lightning-icon icon-name="utility:warning" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                    <strong>スケジューラーが無効です。</strong>
+                    定期支払いの請求が自動生成されません。
+                    「ポータル設定」の「定期支払いスケジューラー」セクションから有効化してください。
+                </div>
+            </template>
+
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="読み込み中" size="medium"></lightning-spinner>
+            </template>
+
+            <template if:true={errorMessage}>
+                <div class="slds-notify slds-notify_alert slds-alert_error slds-m-bottom_small" role="alert">
+                    {errorMessage}
+                </div>
+            </template>
+            <template if:true={successMessage}>
+                <div class="slds-notify slds-notify_alert slds-alert_success slds-m-bottom_small" role="status">
+                    {successMessage}
+                </div>
+            </template>
+
+            <template if:false={isLoading}>
+                <template if:true={hasPlans}>
+                    <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_striped">
+                        <thead>
+                            <tr class="slds-line-height_reset">
+                                <th><div class="slds-truncate">プラン名</div></th>
+                                <th><div class="slds-truncate">会員</div></th>
+                                <th><div class="slds-truncate">種別</div></th>
+                                <th><div class="slds-truncate">金額</div></th>
+                                <th><div class="slds-truncate">頻度</div></th>
+                                <th><div class="slds-truncate">次回期限</div></th>
+                                <th><div class="slds-truncate">累計回数</div></th>
+                                <th><div class="slds-truncate">有効</div></th>
+                                <th><div class="slds-truncate">操作</div></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template for:each={plans} for:item="plan">
+                                <tr key={plan.Id}>
+                                    <td><div class="slds-truncate">{plan.PlanName__c}</div></td>
+                                    <td><div class="slds-truncate">{plan._memberName}</div></td>
+                                    <td><div class="slds-truncate">{plan.PaymentType__c}</div></td>
+                                    <td><div class="slds-truncate">¥{plan._formattedAmount}</div></td>
+                                    <td><div class="slds-truncate">{plan.Frequency__c}</div></td>
+                                    <td><div class="slds-truncate">{plan._formattedNextDue}</div></td>
+                                    <td class="slds-text-align_center">{plan.TotalGenerated__c}</td>
+                                    <td>
+                                        <lightning-input
+                                            type="toggle"
+                                            checked={plan.IsActive__c}
+                                            data-id={plan.Id}
+                                            onchange={handleToggle}
+                                            label="">
+                                        </lightning-input>
+                                    </td>
+                                    <td>
+                                        <lightning-button
+                                            label="削除"
+                                            variant="destructive"
+                                            size="small"
+                                            data-id={plan.Id}
+                                            onclick={handleDelete}>
+                                        </lightning-button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </template>
+                <template if:false={hasPlans}>
+                    <div class="slds-p-around_medium slds-text-align_center slds-text-color_weak">
+                        定期支払いプランが登録されていません。
+                    </div>
+                </template>
+            </template>
+        </div>
+    </lightning-card>
+
+    <!-- 新規作成モーダル -->
+    <template if:true={showModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <lightning-button-icon
+                        icon-name="utility:close"
+                        alternative-text="閉じる"
+                        variant="bare-inverse"
+                        class="slds-modal__close"
+                        onclick={closeModal}>
+                    </lightning-button-icon>
+                    <h2 class="slds-modal__title">新規定期支払いプラン</h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+
+                    <!-- 会員検索 -->
+                    <div class="slds-form-element slds-m-bottom_small">
+                        <label class="slds-form-element__label">
+                            <abbr class="slds-required" title="必須">*</abbr> 対象会員
+                        </label>
+                        <div class="slds-form-element__control">
+                            <input type="text" class="slds-input"
+                                placeholder="氏名・メールで検索..."
+                                value={memberSearchInput}
+                                oninput={handleMemberSearch}
+                                autocomplete="off"/>
+                        </div>
+                        <template if:true={showMemberDropdown}>
+                            <div class="slds-dropdown slds-dropdown_length-5 slds-dropdown_fluid">
+                                <ul class="slds-listbox slds-listbox_vertical" role="listbox">
+                                    <template for:each={memberResults} for:item="m">
+                                        <li key={m.Id} class="slds-listbox__item"
+                                            data-id={m.Id} data-name={m.fullName} data-email={m.Email__c}
+                                            onclick={handleMemberSelect}>
+                                            <span class="slds-listbox__option slds-listbox__option_plain">
+                                                {m.fullName} / {m.Email__c}
+                                            </span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </template>
+                        <template if:true={selectedMember}>
+                            <div class="slds-m-top_x-small slds-badge">
+                                {selectedMember.fullName} ({selectedMember.Email__c})
+                            </div>
+                        </template>
+                    </div>
+
+                    <lightning-input label="プラン名" value={form.planName} data-field="planName" onchange={handleFormChange} required class="slds-m-bottom_small"></lightning-input>
+
+                    <lightning-combobox label="支払種別" value={form.paymentType} options={paymentTypeOptions} data-field="paymentType" onchange={handleFormChange} required class="slds-m-bottom_small"></lightning-combobox>
+
+                    <lightning-input type="number" label="基本金額（円）" value={form.baseAmount} data-field="baseAmount" onchange={handleFormChange} min="1" required class="slds-m-bottom_small"></lightning-input>
+
+                    <lightning-combobox label="頻度" value={form.frequency} options={frequencyOptions} data-field="frequency" onchange={handleFormChange} required class="slds-m-bottom_small"></lightning-combobox>
+
+                    <lightning-input type="date" label="開始日（= 初回支払期限）" value={form.startDate} data-field="startDate" onchange={handleFormChange} required class="slds-m-bottom_small"></lightning-input>
+
+                    <lightning-input type="date" label="終了日（任意）" value={form.endDate} data-field="endDate" onchange={handleFormChange} class="slds-m-bottom_small"></lightning-input>
+
+                    <lightning-input type="number" label="何日前に請求を生成するか" value={form.daysBeforeDue} data-field="daysBeforeDue" onchange={handleFormChange} min="0" max="30" class="slds-m-bottom_small"></lightning-input>
+
+                    <lightning-input label="利用可能決済手段キー（セミコロン区切り、任意）" value={form.allowedMethodKeys} data-field="allowedMethodKeys" onchange={handleFormChange} placeholder="例: payjp_card;bank_transfer" class="slds-m-bottom_small"></lightning-input>
+
+                    <lightning-textarea label="摘要テンプレート（任意）" value={form.description} data-field="description" onchange={handleFormChange} class="slds-m-bottom_small"></lightning-textarea>
+
+                    <template if:true={modalError}>
+                        <div class="slds-notify slds-notify_alert slds-alert_error slds-m-top_small">{modalError}</div>
+                    </template>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label="キャンセル" onclick={closeModal}></lightning-button>
+                    <lightning-button label="作成" variant="brand" onclick={handleSave} disabled={isSaving}></lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>

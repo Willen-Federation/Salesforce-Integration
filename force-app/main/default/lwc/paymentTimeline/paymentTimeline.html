@@ -1,0 +1,50 @@
+<template>
+    <div class="timeline-container">
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="読み込み中" size="small"></lightning-spinner>
+        </template>
+        <template if:false={isLoading}>
+            <template if:true={hasHistory}>
+                <ul class="slds-timeline">
+                    <template for:each={historyItems} for:item="item">
+                        <li key={item.Id} class="slds-timeline__item">
+                            <div class="slds-media slds-media_timeline slds-timeline__media">
+                                <div class="slds-media__figure slds-media__figure_timeline">
+                                    <lightning-icon
+                                        icon-name={item._icon}
+                                        size="x-small"
+                                        class={item._iconClass}>
+                                    </lightning-icon>
+                                </div>
+                                <div class="slds-media__body">
+                                    <div class="slds-grid slds-grid_align-spread slds-timeline__trigger">
+                                        <div class="slds-grid slds-grid_vertical-align-center slds-truncate_container_75 slds-no-space">
+                                            <span class={item._badgeClass}>{item.NewStatus__c}</span>
+                                            <template if:true={item.OldStatus__c}>
+                                                <span class="slds-text-color_weak slds-m-left_x-small slds-text-body_small">
+                                                    （{item.OldStatus__c} から）
+                                                </span>
+                                            </template>
+                                        </div>
+                                        <div class="slds-text-color_weak slds-text-body_small slds-no-flex slds-m-left_x-small">
+                                            {item._formattedDate}
+                                        </div>
+                                    </div>
+                                    <div class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small">
+                                        {item.ChangedBy__c}
+                                        <template if:true={item.Notes__c}>
+                                            — {item.Notes__c}
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                    </template>
+                </ul>
+            </template>
+            <template if:false={hasHistory}>
+                <p class="slds-text-body_small slds-text-color_weak">履歴はありません。</p>
+            </template>
+        </template>
+    </div>
+</template>

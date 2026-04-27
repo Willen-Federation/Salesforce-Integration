@@ -1,0 +1,14 @@
+.preview-body {
+    white-space: pre-wrap;
+    font-family: monospace;
+    font-size: 0.8rem;
+    background: #f4f6f9;
+    padding: 0.5rem;
+    border-radius: 4px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.slds-progress__list {
+    justify-content: space-between;
+}

@@ -167,6 +167,28 @@
         <visibleLines>5</visibleLines>
         <required>false</required>
     </fields>
+    <!-- ポータルアクセス管理 -->
+    <fields>
+        <fullName>PortalAccessToken__c</fullName>
+        <label>ポータルアクセストークン</label>
+        <type>Text</type>
+        <length>255</length>
+        <required>false</required>
+        <unique>true</unique>
+        <externalId>true</externalId>
+    </fields>
+    <fields>
+        <fullName>PortalTokenExpiry__c</fullName>
+        <label>トークン有効期限</label>
+        <type>DateTime</type>
+        <required>false</required>
+    </fields>
+    <fields>
+        <fullName>IsPortalEnabled__c</fullName>
+        <label>ポータルアクセス有効</label>
+        <type>Checkbox</type>
+        <defaultValue>true</defaultValue>
+    </fields>
     <searchLayouts>
         <searchResultsAdditionalFields>Email__c</searchResultsAdditionalFields>
         <searchResultsAdditionalFields>MemberStatus__c</searchResultsAdditionalFields>

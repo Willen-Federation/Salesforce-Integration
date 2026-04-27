@@ -1,0 +1,304 @@
+<template>
+    <lightning-card title="一括通知配信" icon-name="standard:email">
+        <div class="slds-card__body slds-card__body_inner">
+
+            <!-- ステップインジケーター -->
+            <div class="slds-progress slds-m-bottom_medium" aria-valuemin="0" aria-valuemax="100">
+                <ol class="slds-progress__list">
+                    <li class={stepClass1} aria-label="テンプレート設定">
+                        <button class="slds-button slds-progress__marker">
+                            <lightning-icon if:true={step1Done} icon-name="utility:check" size="x-small" variant="inverse"></lightning-icon>
+                            <span if:false={step1Done}>1</span>
+                        </button>
+                        <div class="slds-popover slds-popover_tooltip slds-nubbin_bottom-left" role="tooltip">テンプレート設定</div>
+                    </li>
+                    <li class={stepClass2} aria-label="CSVダウンロード">
+                        <button class="slds-button slds-progress__marker">
+                            <lightning-icon if:true={step2Done} icon-name="utility:check" size="x-small" variant="inverse"></lightning-icon>
+                            <span if:false={step2Done}>2</span>
+                        </button>
+                        <div class="slds-popover slds-popover_tooltip slds-nubbin_bottom-left" role="tooltip">CSVダウンロード</div>
+                    </li>
+                    <li class={stepClass3} aria-label="CSVアップロード">
+                        <button class="slds-button slds-progress__marker">
+                            <lightning-icon if:true={step3Done} icon-name="utility:check" size="x-small" variant="inverse"></lightning-icon>
+                            <span if:false={step3Done}>3</span>
+                        </button>
+                        <div class="slds-popover slds-popover_tooltip slds-nubbin_bottom-left" role="tooltip">CSVアップロード</div>
+                    </li>
+                    <li class={stepClass4} aria-label="プレビュー">
+                        <button class="slds-button slds-progress__marker">
+                            <lightning-icon if:true={step4Done} icon-name="utility:check" size="x-small" variant="inverse"></lightning-icon>
+                            <span if:false={step4Done}>4</span>
+                        </button>
+                        <div class="slds-popover slds-popover_tooltip slds-nubbin_bottom-left" role="tooltip">プレビュー</div>
+                    </li>
+                    <li class={stepClass5} aria-label="送信">
+                        <button class="slds-button slds-progress__marker">
+                            <span>5</span>
+                        </button>
+                        <div class="slds-popover slds-popover_tooltip slds-nubbin_bottom-left" role="tooltip">送信</div>
+                    </li>
+                </ol>
+                <div class="slds-progress-bar slds-progress-bar_x-small" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progressPercent} role="progressbar">
+                    <span class="slds-progress-bar__value" style={progressStyle}></span>
+                </div>
+            </div>
+
+            <!-- ======== STEP 1: テンプレート設定 ======== -->
+            <template if:true={isStep1}>
+                <div class="slds-box slds-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-m-bottom_small">Step 1：テンプレート設定</h3>
+
+                    <lightning-combobox
+                        label="対象会員種別"
+                        value={memberTypeFilter}
+                        options={memberTypeOptions}
+                        onchange={handleMemberTypeChange}
+                        class="slds-m-bottom_small">
+                    </lightning-combobox>
+
+                    <lightning-input
+                        label="件名テンプレート"
+                        value={subjectTemplate}
+                        placeholder="例: 【{!会員種別}会員の皆様へ】お知らせ"
+                        onchange={handleSubjectChange}
+                        required
+                        class="slds-m-bottom_small">
+                    </lightning-input>
+
+                    <lightning-textarea
+                        label="本文テンプレート"
+                        value={bodyTemplate}
+                        placeholder="例: {!姓} {!名} 様&#10;&#10;いつもお世話になっております。&#10;{!カスタム項目1} の件でご連絡いたします。"
+                        max-length="5000"
+                        onchange={handleBodyChange}
+                        required
+                        class="slds-m-bottom_small">
+                    </lightning-textarea>
+
+                    <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_small">
+                        使用可能な差し込み項目: <code>{!会員ID}</code> <code>{!会員番号}</code> <code>{!姓}</code> <code>{!名}</code>
+                        <code>{!メールアドレス}</code> <code>{!会員種別}</code> <code>{!会員ステータス}</code>
+                        + カスタム列名
+                    </p>
+
+                    <div class="slds-form-element slds-m-bottom_small">
+                        <label class="slds-form-element__label">カスタム列（任意）</label>
+                        <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_x-small">
+                            CSVに追加する入力用列名を定義します。テンプレートで <code>{!列名}</code> として使用できます。
+                        </p>
+                        <template for:each={customFields} for:item="field" for:index="idx">
+                            <div key={field.id} class="slds-grid slds-grid_vertical-align-center slds-m-bottom_x-small">
+                                <div class="slds-col slds-grow">
+                                    <lightning-input
+                                        label=""
+                                        value={field.name}
+                                        placeholder="列名（例: 備考、イベント名）"
+                                        data-idx={idx}
+                                        onchange={handleCustomFieldChange}>
+                                    </lightning-input>
+                                </div>
+                                <div class="slds-col slds-shrink slds-m-left_x-small">
+                                    <lightning-button-icon
+                                        icon-name="utility:delete"
+                                        variant="bare"
+                                        alternative-text="削除"
+                                        data-idx={idx}
+                                        onclick={handleRemoveCustomField}>
+                                    </lightning-button-icon>
+                                </div>
+                            </div>
+                        </template>
+                        <lightning-button
+                            label="列を追加"
+                            icon-name="utility:add"
+                            size="small"
+                            onclick={handleAddCustomField}
+                            class="slds-m-top_x-small">
+                        </lightning-button>
+                    </div>
+
+                    <div class="slds-m-top_small">
+                        <lightning-input
+                            type="checkbox"
+                            label="メール送信"
+                            checked={channelEmail}
+                            onchange={handleChannelEmailChange}
+                            class="slds-m-right_small">
+                        </lightning-input>
+                        <lightning-input
+                            type="checkbox"
+                            label="Slack送信（設定チャンネル）"
+                            checked={channelSlack}
+                            onchange={handleChannelSlackChange}>
+                        </lightning-input>
+                    </div>
+
+                    <template if:true={step1Error}>
+                        <div class="slds-notify slds-notify_alert slds-alert_error slds-m-top_small">{step1Error}</div>
+                    </template>
+                </div>
+                <div class="slds-text-align_right">
+                    <lightning-button label="次へ → CSVダウンロード" variant="brand" onclick={handleStep1Next}></lightning-button>
+                </div>
+            </template>
+
+            <!-- ======== STEP 2: CSVダウンロード ======== -->
+            <template if:true={isStep2}>
+                <div class="slds-box slds-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-m-bottom_small">Step 2：CSVテンプレートのダウンロード</h3>
+                    <p class="slds-text-body_regular slds-m-bottom_small">
+                        下のボタンをクリックして CSVテンプレートをダウンロードします。<br/>
+                        システム項目はすでに入力済みです。カスタム列（空欄）に各会員の情報を入力して保存してください。
+                    </p>
+                    <template if:true={isGenerating}>
+                        <lightning-spinner alternative-text="生成中" size="small"></lightning-spinner>
+                    </template>
+                    <template if:false={isGenerating}>
+                        <lightning-button
+                            label="CSVテンプレートをダウンロード"
+                            variant="brand"
+                            icon-name="utility:download"
+                            onclick={handleDownloadCsv}>
+                        </lightning-button>
+                        <template if:true={csvDownloaded}>
+                            <span class="slds-badge slds-badge_success slds-m-left_small">
+                                <lightning-icon icon-name="utility:check" size="xx-small" class="slds-m-right_xx-small"></lightning-icon>
+                                ダウンロード済み
+                            </span>
+                        </template>
+                    </template>
+                    <template if:true={step2Error}>
+                        <div class="slds-notify slds-notify_alert slds-alert_error slds-m-top_small">{step2Error}</div>
+                    </template>
+                </div>
+                <div class="slds-grid slds-grid_align-spread">
+                    <lightning-button label="← 戻る" onclick={handleBack}></lightning-button>
+                    <lightning-button label="次へ → CSVアップロード" variant="brand" onclick={handleStep2Next}></lightning-button>
+                </div>
+            </template>
+
+            <!-- ======== STEP 3: CSVアップロード ======== -->
+            <template if:true={isStep3}>
+                <div class="slds-box slds-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-m-bottom_small">Step 3：入力済みCSVのアップロード</h3>
+                    <p class="slds-text-body_regular slds-m-bottom_small">
+                        カスタム列を入力したCSVファイルをアップロードしてください。（UTF-8 または Shift-JIS、Excel保存形式対応）
+                    </p>
+                    <div class="slds-form-element slds-m-bottom_small">
+                        <label class="slds-form-element__label">CSVファイルを選択</label>
+                        <div class="slds-form-element__control">
+                            <input type="file" accept=".csv,.txt" onchange={handleFileChange} class="slds-input"/>
+                        </div>
+                    </div>
+                    <template if:true={isParsing}>
+                        <lightning-spinner alternative-text="解析中" size="small"></lightning-spinner>
+                    </template>
+                    <template if:true={parsedRowCount}>
+                        <div class="slds-notify slds-notify_alert slds-alert_success">
+                            {parsedRowCount} 件のデータを読み込みました。
+                        </div>
+                    </template>
+                    <template if:true={step3Error}>
+                        <div class="slds-notify slds-notify_alert slds-alert_error slds-m-top_small">{step3Error}</div>
+                    </template>
+                </div>
+                <div class="slds-grid slds-grid_align-spread">
+                    <lightning-button label="← 戻る" onclick={handleBack}></lightning-button>
+                    <lightning-button label="次へ → プレビュー" variant="brand" onclick={handleStep3Next} disabled={noParsedRows}></lightning-button>
+                </div>
+            </template>
+
+            <!-- ======== STEP 4: プレビュー ======== -->
+            <template if:true={isStep4}>
+                <div class="slds-box slds-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-m-bottom_small">Step 4：送信プレビュー（先頭5件）</h3>
+                    <template if:true={isPreviewLoading}>
+                        <lightning-spinner alternative-text="生成中" size="small"></lightning-spinner>
+                    </template>
+                    <template for:each={previewItems} for:item="item">
+                        <div key={item.recipientEmail} class="slds-box slds-box_small slds-m-bottom_small">
+                            <p class="slds-text-body_small slds-text-color_weak">宛先: {item.recipientName} &lt;{item.recipientEmail}&gt;</p>
+                            <p class="slds-m-top_x-small"><strong>件名:</strong> {item.subject}</p>
+                            <div class="slds-m-top_x-small preview-body">{item.body}</div>
+                        </div>
+                    </template>
+                    <p class="slds-text-body_small slds-text-color_weak slds-m-top_small">
+                        全 {parsedRowCount} 件に同様の形式で送信されます。
+                    </p>
+                    <template if:true={step4Error}>
+                        <div class="slds-notify slds-notify_alert slds-alert_error slds-m-top_small">{step4Error}</div>
+                    </template>
+                </div>
+                <div class="slds-grid slds-grid_align-spread">
+                    <lightning-button label="← 戻る" onclick={handleBack}></lightning-button>
+                    <lightning-button label="次へ → 送信確認" variant="brand" onclick={handleStep4Next}></lightning-button>
+                </div>
+            </template>
+
+            <!-- ======== STEP 5: 送信確認 ======== -->
+            <template if:true={isStep5}>
+                <div class="slds-box slds-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-m-bottom_small">Step 5：送信確認</h3>
+                    <div class="slds-notify slds-notify_alert slds-alert_warning slds-m-bottom_small" role="alert">
+                        <lightning-icon icon-name="utility:warning" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                        <strong>{parsedRowCount} 件</strong>に通知を送信します。この操作は取り消せません。
+                    </div>
+                    <dl class="slds-dl_horizontal">
+                        <dt class="slds-dl_horizontal__label">件名テンプレート</dt>
+                        <dd class="slds-dl_horizontal__detail">{subjectTemplate}</dd>
+                        <dt class="slds-dl_horizontal__label slds-m-top_x-small">送信先</dt>
+                        <dd class="slds-dl_horizontal__detail slds-m-top_x-small">{parsedRowCount} 名</dd>
+                        <dt class="slds-dl_horizontal__label slds-m-top_x-small">チャンネル</dt>
+                        <dd class="slds-dl_horizontal__detail slds-m-top_x-small">{channelSummary}</dd>
+                    </dl>
+
+                    <template if:true={isSending}>
+                        <lightning-spinner alternative-text="送信中" size="medium" class="slds-m-top_medium"></lightning-spinner>
+                    </template>
+
+                    <template if:true={sendResult}>
+                        <div class="slds-m-top_medium">
+                            <template if:true={sendResult.successCount}>
+                                <div class="slds-notify slds-notify_alert slds-alert_success slds-m-bottom_small">
+                                    ✓ {sendResult.successCount} 件の送信に成功しました。
+                                </div>
+                            </template>
+                            <template if:true={sendResult.failCount}>
+                                <div class="slds-notify slds-notify_alert slds-alert_error slds-m-bottom_small">
+                                    ✗ {sendResult.failCount} 件の送信に失敗しました。
+                                </div>
+                                <ul class="slds-list_dotted slds-text-body_small">
+                                    <template for:each={sendResult.errors} for:item="err">
+                                        <li key={err}>{err}</li>
+                                    </template>
+                                </ul>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template if:true={step5Error}>
+                        <div class="slds-notify slds-notify_alert slds-alert_error slds-m-top_small">{step5Error}</div>
+                    </template>
+                </div>
+                <div class="slds-grid slds-grid_align-spread">
+                    <lightning-button label="← 戻る" onclick={handleBack} disabled={isSending}></lightning-button>
+                    <template if:false={sendResult}>
+                        <lightning-button
+                            label="送信実行"
+                            variant="brand"
+                            icon-name="utility:send"
+                            onclick={handleSend}
+                            disabled={isSending}>
+                        </lightning-button>
+                    </template>
+                    <template if:true={sendResult}>
+                        <lightning-button label="最初からやり直す" variant="neutral" onclick={handleReset}></lightning-button>
+                    </template>
+                </div>
+            </template>
+
+        </div>
+    </lightning-card>
+</template>
