@@ -20,7 +20,7 @@
             </template>
 
             <!-- 基本設定 -->
-            <lightning-accordion allow-multiple-sections-open active-section-name="basic,payjp">
+            <lightning-accordion allow-multiple-sections-open active-section-name="basic,gmo">
                 <lightning-accordion-section name="basic" label="基本設定">
                     <div class="slds-grid slds-wrap">
                         <div class="slds-col slds-size_1-of-2 slds-p-right_small">
@@ -71,6 +71,66 @@
                         </div>
                         <div class="slds-col slds-size_1-of-2">
                             <lightning-input type="password" label="Okta APIトークン" data-key="oktaApiToken" onchange={handleChange} placeholder="SSWJxxxxxxxxxx"></lightning-input>
+                        </div>
+                    </div>
+                </lightning-accordion-section>
+
+                <!-- GMOあおぞらネット銀行設定 -->
+                <lightning-accordion-section name="gmo" label="GMOあおぞらネット銀行（デフォルト決済）">
+                    <p class="slds-text-body_small slds-m-bottom_small">バーチャル口座振込をデフォルト決済手段として利用します。</p>
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-3 slds-p-right_small">
+                            <lightning-combobox label="デフォルト決済プロバイダー" data-key="defaultPaymentProvider" value={config.defaultPaymentProvider} options={providerOptions} onchange={handleChange}></lightning-combobox>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3 slds-p-right_small">
+                            <lightning-combobox label="環境" data-key="gmoAozoraMode" value={config.gmoAozoraMode} options={modeOptions} onchange={handleChange}></lightning-combobox>
+                        </div>
+                    </div>
+                    <div class="slds-grid slds-wrap slds-m-top_small">
+                        <div class="slds-col slds-size_1-of-2 slds-p-right_small">
+                            <lightning-input label="クライアントID" data-key="gmoAozoraClientId" value={config.gmoAozoraClientId} onchange={handleChange} placeholder="client_id"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input type="password" label="クライアントシークレット" data-key="gmoAozoraClientSecret" onchange={handleChange} placeholder="client_secret"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-m-top_small">
+                            <lightning-input type="password" label="Webhookシークレット" data-key="gmoAozoraWebhookSecret" onchange={handleChange} placeholder="入金通知Webhook署名検証キー"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-p-right_small slds-m-top_small">
+                            <lightning-input label="入金口座ID (raId)" data-key="gmoAozoraRaId" value={config.gmoAozoraRaId} onchange={handleChange} placeholder="101011234567"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-m-top_small">
+                            <lightning-input type="password" label="リフレッシュトークン" data-key="gmoAozoraRefreshToken" onchange={handleChange} placeholder="OAuth2認証後に取得したリフレッシュトークン"></lightning-input>
+                        </div>
+                    </div>
+                </lightning-accordion-section>
+
+                <!-- GMOあおぞら 自動振込設定 -->
+                <lightning-accordion-section name="gmoAutoTransfer" label="GMOあおぞら 自動振込設定（入金後スイープ）">
+                    <p class="slds-text-body_small slds-m-bottom_small">
+                        有効にすると、振込入金口座に入金が確認された後、自動的に指定口座へ振込依頼を行います。
+                    </p>
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                            <lightning-input type="checkbox" label="自動振込を有効化" data-key="gmoAozoraAutoTransferEnabled" checked={config.gmoAozoraAutoTransferEnabled} onchange={handleCheckChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-p-right_small">
+                            <lightning-input label="送金元 口座ID (accountId)" data-key="gmoAozoraAutoTransferAccountId" value={config.gmoAozoraAutoTransferAccountId} onchange={handleChange} placeholder="101011234567"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input label="振込先 金融機関コード（4桁）" data-key="gmoAozoraAutoTransferBankCode" value={config.gmoAozoraAutoTransferBankCode} onchange={handleChange} placeholder="0398"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3 slds-p-right_small slds-m-top_small">
+                            <lightning-input label="振込先 支店コード（3桁）" data-key="gmoAozoraAutoTransferBranchCode" value={config.gmoAozoraAutoTransferBranchCode} onchange={handleChange} placeholder="101"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3 slds-p-right_small slds-m-top_small">
+                            <lightning-combobox label="科目" data-key="gmoAozoraAutoTransferAccountType" value={config.gmoAozoraAutoTransferAccountType} options={accountTypeOptions} onchange={handleChange}></lightning-combobox>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3 slds-m-top_small">
+                            <lightning-input label="振込先 口座番号（7桁）" data-key="gmoAozoraAutoTransferAccountNumber" value={config.gmoAozoraAutoTransferAccountNumber} onchange={handleChange} placeholder="1234567"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-1 slds-m-top_small">
+                            <lightning-input label="振込先 受取人名（半角カナ）" data-key="gmoAozoraAutoTransferBeneficiaryName" value={config.gmoAozoraAutoTransferBeneficiaryName} onchange={handleChange} placeholder="ｶ)ｻﾝﾌﾟﾙｶｲｼﾔ"></lightning-input>
                         </div>
                     </div>
                 </lightning-accordion-section>

@@ -99,6 +99,46 @@
                                 </lightning-combobox>
                             </template>
 
+                            <!-- GMOあおぞら バーチャル口座情報 -->
+                            <template if:true={isGmoAozora}>
+                                <div class="slds-m-top_medium">
+                                    <template if:false={virtualAccountInfo}>
+                                        <lightning-button
+                                            label="振込口座を発行する"
+                                            variant="neutral"
+                                            icon-name="utility:new"
+                                            onclick={handleGetVirtualAccount}
+                                            disabled={isIssuingAccount}>
+                                        </lightning-button>
+                                        <template if:true={isIssuingAccount}>
+                                            <lightning-spinner alternative-text="発行中" size="small" class="slds-m-left_small"></lightning-spinner>
+                                        </template>
+                                    </template>
+                                    <template if:true={virtualAccountInfo}>
+                                        <div class="slds-box slds-theme_shade slds-m-top_small">
+                                            <h4 class="slds-text-heading_small slds-m-bottom_small">振込先口座情報</h4>
+                                            <dl class="slds-dl_horizontal">
+                                                <dt class="slds-dl_horizontal__label">銀行名</dt>
+                                                <dd class="slds-dl_horizontal__detail">{virtualAccountInfo.bankName}</dd>
+                                                <dt class="slds-dl_horizontal__label">支店コード</dt>
+                                                <dd class="slds-dl_horizontal__detail">{virtualAccountInfo.branchCode}　{virtualAccountInfo.branchNameKana}</dd>
+                                                <dt class="slds-dl_horizontal__label">口座番号</dt>
+                                                <dd class="slds-dl_horizontal__detail slds-text-heading_small">{virtualAccountInfo.accountNumber}</dd>
+                                                <dt class="slds-dl_horizontal__label">口座名義</dt>
+                                                <dd class="slds-dl_horizontal__detail">{virtualAccountInfo.holderNameKana}</dd>
+                                                <dt class="slds-dl_horizontal__label">振込金額</dt>
+                                                <dd class="slds-dl_horizontal__detail">{formattedTotal}</dd>
+                                                <dt class="slds-dl_horizontal__label">振込期限</dt>
+                                                <dd class="slds-dl_horizontal__detail">{virtualAccountInfo.expiresAt}</dd>
+                                            </dl>
+                                            <p class="slds-text-body_small slds-m-top_small slds-theme_info slds-p-around_x-small">
+                                                入金確認後、自動的に支払い済みに更新されます。
+                                            </p>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
                             <!-- クレジットカード入力エリア（iframe） -->
                             <template if:true={showCardFrame}>
                                 <div class="slds-box slds-theme_shade slds-m-top_small card-frame-wrapper">
@@ -108,16 +148,14 @@
                                             <p class="slds-m-top_small slds-text-color_weak">決済フォームを読み込んでいます...</p>
                                         </div>
                                     </template>
-                                    <template if:false={isLoadingProvider}>
-                                        <iframe
-                                            src={cardFrameUrl}
-                                            title="クレジットカード入力フォーム"
-                                            frameborder="0"
-                                            scrolling="no"
-                                            class="card-iframe"
-                                            onload={handleIframeLoad}>
-                                        </iframe>
-                                    </template>
+                                    <iframe
+                                        src={cardFrameUrl}
+                                        title="クレジットカード入力フォーム"
+                                        frameborder="0"
+                                        scrolling="no"
+                                        class="card-iframe"
+                                        onload={handleIframeLoad}>
+                                    </iframe>
                                 </div>
                                 <template if:true={gatewayError}>
                                     <div class="slds-notify slds-notify_alert slds-alert_error slds-m-top_small" role="alert">
@@ -173,22 +211,27 @@
 
                         <footer class="slds-modal__footer">
                             <lightning-button label="キャンセル" onclick={closeModal} disabled={isProcessing}></lightning-button>
-                            <template if:false={showCardFrame}>
-                                <template if:false={showAlternativeGateway}>
-                                    <lightning-button
-                                        label="申請を完了する"
-                                        variant="brand"
-                                        onclick={handleNonCardPayment}
-                                        disabled={isProcessing}>
-                                    </lightning-button>
-                                </template>
-                                <template if:true={showAlternativeGateway}>
-                                    <lightning-button
-                                        label="支払い手続きへ進む"
-                                        variant="brand"
-                                        onclick={handleAlternativeGateway}
-                                        disabled={isProcessing}>
-                                    </lightning-button>
+                            <template if:true={isGmoAozora}>
+                                <lightning-button label="閉じる（振込完了後に自動更新）" variant="brand" onclick={closeModal}></lightning-button>
+                            </template>
+                            <template if:false={isGmoAozora}>
+                                <template if:false={showCardFrame}>
+                                    <template if:false={showAlternativeGateway}>
+                                        <lightning-button
+                                            label="申請を完了する"
+                                            variant="brand"
+                                            onclick={handleNonCardPayment}
+                                            disabled={isProcessing}>
+                                        </lightning-button>
+                                    </template>
+                                    <template if:true={showAlternativeGateway}>
+                                        <lightning-button
+                                            label="支払い手続きへ進む"
+                                            variant="brand"
+                                            onclick={handleAlternativeGateway}
+                                            disabled={isProcessing}>
+                                        </lightning-button>
+                                    </template>
                                 </template>
                             </template>
                         </footer>

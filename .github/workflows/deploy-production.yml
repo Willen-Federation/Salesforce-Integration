@@ -1,0 +1,128 @@
+name: Deploy to Production
+
+# 本番デプロイは手動トリガーのみ
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: '本番デプロイを実行します。"deploy" と入力して確認してください'
+        required: true
+        type: string
+      test_level:
+        description: 'テストレベル'
+        required: true
+        default: 'RunLocalTests'
+        type: choice
+        options:
+          - RunLocalTests
+          - RunAllTestsInOrg
+      dry_run:
+        description: 'ドライラン（checkOnlyモード）— 実際にはデプロイしない'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  # ──────────────────────────────────────────────
+  # 確認チェック
+  # ──────────────────────────────────────────────
+  preflight:
+    name: Preflight Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify confirmation input
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "deploy" ]; then
+            echo "❌ 確認文字列が正しくありません。'deploy' と入力してください。"
+            exit 1
+          fi
+          echo "✅ Confirmation OK"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Ref: ${{ github.ref_name }}"
+          echo "Dry run: ${{ github.event.inputs.dry_run }}"
+
+  # ──────────────────────────────────────────────
+  # 本番デプロイ
+  # ──────────────────────────────────────────────
+  deploy-production:
+    name: Deploy → Production
+    needs: preflight
+    runs-on: ubuntu-latest
+    environment: production  # GitHub Environment の保護ルール（承認者設定を推奨）
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Salesforce CLI
+        run: |
+          npm install --global @salesforce/cli@latest
+          sf version
+
+      - name: Authenticate to Production (JWT)
+        env:
+          SF_JWT_PRIVATE_KEY: ${{ secrets.SF_JWT_PRIVATE_KEY_PROD }}
+          SF_CONSUMER_KEY:    ${{ secrets.SF_CONSUMER_KEY_PROD }}
+          SF_USERNAME:        ${{ secrets.SF_USERNAME_PROD }}
+        run: |
+          echo "$SF_JWT_PRIVATE_KEY" > /tmp/server.key
+          sf org login jwt \
+            --client-id    "$SF_CONSUMER_KEY" \
+            --jwt-key-file /tmp/server.key \
+            --username     "$SF_USERNAME" \
+            --instance-url https://login.salesforce.com \
+            --alias        production \
+            --set-default
+          rm /tmp/server.key
+
+      - name: Validate before deploy
+        run: |
+          sf project deploy validate \
+            --source-dir force-app \
+            --target-org production \
+            --test-level ${{ github.event.inputs.test_level }} \
+            --wait 30
+
+      - name: Deploy to Production
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          sf project deploy start \
+            --source-dir force-app \
+            --target-org production \
+            --test-level ${{ github.event.inputs.test_level }} \
+            --wait 60 \
+            --verbose
+
+      - name: Skip (dry run mode)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: echo "⚠️ Dry run mode — メタデータ検証のみ実行しました。デプロイはスキップされました。"
+
+      - name: Show Apex test results
+        if: always()
+        run: |
+          sf apex get test \
+            --target-org production \
+            --result-format human 2>/dev/null || true
+
+      - name: Upload deploy results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-deploy-${{ github.run_number }}
+          path: .sf/
+          retention-days: 30
+
+      - name: Create deployment summary
+        if: success()
+        run: |
+          echo "## 🚀 本番デプロイ完了" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 項目 | 値 |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| 実行者 | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| コミット | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| テストレベル | ${{ github.event.inputs.test_level }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ドライラン | ${{ github.event.inputs.dry_run }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 日時 (UTC) | $(date '+%Y-%m-%d %H:%M:%S') |" >> $GITHUB_STEP_SUMMARY

@@ -88,6 +88,7 @@
         <valueSet>
             <valueSetDefinition>
                 <sorted>false</sorted>
+                <value><fullName>GMOあおぞら銀行振込</fullName><label>GMOあおぞら銀行振込</label><default>true</default></value>
                 <value><fullName>クレジットカード（Visa/Mastercard）</fullName><label>クレジットカード（Visa/Mastercard）</label><default>false</default></value>
                 <value><fullName>銀行振込</fullName><label>銀行振込</label><default>false</default></value>
                 <value><fullName>口座振替</fullName><label>口座振替</label><default>false</default></value>
@@ -106,6 +107,7 @@
         <valueSet>
             <valueSetDefinition>
                 <sorted>false</sorted>
+                <value><fullName>GMOあおぞら</fullName><label>GMOあおぞら</label><default>true</default></value>
                 <value><fullName>Pay.jp</fullName><label>Pay.jp</label><default>false</default></value>
                 <value><fullName>Omise</fullName><label>Omise</label><default>false</default></value>
                 <value><fullName>Stripe</fullName><label>Stripe</label><default>false</default></value>
@@ -159,6 +161,100 @@
         <type>TextArea</type>
         <required>false</required>
     </fields>
+    <!-- GMOあおぞらネット銀行 バーチャル口座情報 -->
+    <fields>
+        <fullName>VirtualAccountNumber__c</fullName>
+        <label>バーチャル口座番号</label>
+        <type>Text</type>
+        <length>20</length>
+        <required>false</required>
+        <unique>false</unique>
+        <externalId>false</externalId>
+    </fields>
+    <fields>
+        <fullName>VirtualAccountBranchCode__c</fullName>
+        <label>バーチャル口座 支店コード</label>
+        <type>Text</type>
+        <length>10</length>
+        <required>false</required>
+        <unique>false</unique>
+        <externalId>false</externalId>
+    </fields>
+    <fields>
+        <fullName>VirtualAccountBranchName__c</fullName>
+        <label>バーチャル口座 支店名</label>
+        <type>Text</type>
+        <length>50</length>
+        <required>false</required>
+        <unique>false</unique>
+        <externalId>false</externalId>
+    </fields>
+    <fields>
+        <fullName>VirtualAccountName__c</fullName>
+        <label>バーチャル口座 口座名義</label>
+        <type>Text</type>
+        <length>50</length>
+        <required>false</required>
+        <unique>false</unique>
+        <externalId>false</externalId>
+    </fields>
+    <fields>
+        <fullName>VirtualAccountExpiresAt__c</fullName>
+        <label>バーチャル口座 振込期限</label>
+        <type>Date</type>
+        <required>false</required>
+    </fields>
+    <fields>
+        <fullName>DepositConfirmedAt__c</fullName>
+        <label>入金確認日時</label>
+        <type>DateTime</type>
+        <required>false</required>
+        <trackHistory>true</trackHistory>
+    </fields>
+    <fields>
+        <fullName>DepositAmount__c</fullName>
+        <label>入金確認金額</label>
+        <type>Currency</type>
+        <precision>12</precision>
+        <scale>0</scale>
+        <required>false</required>
+        <trackHistory>true</trackHistory>
+    </fields>
+    <fields>
+        <fullName>GmoTransferId__c</fullName>
+        <label>GMOあおぞら 振込ID</label>
+        <type>Text</type>
+        <length>100</length>
+        <required>false</required>
+        <unique>false</unique>
+        <externalId>false</externalId>
+    </fields>
+    <!-- GMOあおぞら 自動振込情報 -->
+    <fields>
+        <fullName>AutoTransferApplyNo__c</fullName>
+        <label>自動振込 申請番号</label>
+        <type>Text</type>
+        <length>16</length>
+        <required>false</required>
+        <unique>false</unique>
+        <externalId>false</externalId>
+    </fields>
+    <fields>
+        <fullName>AutoTransferStatus__c</fullName>
+        <label>自動振込ステータス</label>
+        <type>Picklist</type>
+        <required>false</required>
+        <trackHistory>true</trackHistory>
+        <valueSet>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>未実行</fullName><label>未実行</label><default>false</default></value>
+                <value><fullName>振込依頼済</fullName><label>振込依頼済</label><default>false</default></value>
+                <value><fullName>振込依頼失敗</fullName><label>振込依頼失敗</label><default>false</default></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+
     <fields>
         <fullName>ReceiptIssued__c</fullName>
         <label>領収書発行済み</label>

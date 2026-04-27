@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>GMOあおぞら 入金先設定</label>
+    <pluralLabel>GMOあおぞら 入金先設定</pluralLabel>
+    <nameField>
+        <label>設定名</label>
+        <type>Text</type>
+    </nameField>
+    <deploymentStatus>Deployed</deploymentStatus>
+    <sharingModel>ReadWrite</sharingModel>
+    <enableActivities>false</enableActivities>
+    <enableHistory>false</enableHistory>
+    <enableReports>true</enableReports>
+    <enableSearch>true</enableSearch>
+
+    <fields>
+        <fullName>PaymentCategory__c</fullName>
+        <label>支払種別</label>
+        <description>Payment__c.PaymentType__c の値と一致させてください（例: 年会費、寄付金）</description>
+        <type>Text</type>
+        <length>100</length>
+        <required>true</required>
+        <unique>false</unique>
+        <externalId>false</externalId>
+    </fields>
+    <fields>
+        <fullName>RaId__c</fullName>
+        <label>入金口座ID (raId)</label>
+        <description>GMOあおぞら API の raId（12〜29桁）。この種別の振込入金口座はこの入金先口座に紐づきます。</description>
+        <type>Text</type>
+        <length>50</length>
+        <required>true</required>
+        <unique>false</unique>
+        <externalId>false</externalId>
+    </fields>
+    <fields>
+        <fullName>IsActive__c</fullName>
+        <label>有効</label>
+        <type>Checkbox</type>
+        <defaultValue>true</defaultValue>
+        <required>false</required>
+    </fields>
+    <fields>
+        <fullName>Description__c</fullName>
+        <label>説明</label>
+        <type>TextArea</type>
+        <required>false</required>
+    </fields>
+</CustomObject>

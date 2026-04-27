@@ -8,13 +8,16 @@ import processPayment          from '@salesforce/apex/PaymentGatewayService.proc
 import getProviderConfig       from '@salesforce/apex/PaymentGatewayService.getProviderConfig';
 import getDirectDebitFormUrl   from '@salesforce/apex/PaymentGatewayService.getDirectDebitFormUrl';
 import calculateMethodFees     from '@salesforce/apex/PaymentFeeRuleController.calculateMethodFees';
+import createVirtualAccount    from '@salesforce/apex/GmoAozoraService.createVirtualAccount';
+import getVirtualAccountInfo   from '@salesforce/apex/GmoAozoraService.getVirtualAccountInfo';
 
 // 利用可能手段が指定されていない場合の汎用選択肢
 const FALLBACK_METHOD_OPTIONS = [
-    { label: 'クレジットカード', value: 'credit_card' },
-    { label: '銀行振込',         value: 'bank_transfer' },
-    { label: '口座振替',         value: 'direct_debit' },
-    { label: '請求書払い',       value: 'invoice' },
+    { label: 'GMOあおぞら銀行振込', value: 'gmo_aozora' },
+    { label: 'クレジットカード',     value: 'credit_card' },
+    { label: '銀行振込',             value: 'bank_transfer' },
+    { label: '口座振替',             value: 'direct_debit' },
+    { label: '請求書払い',           value: 'invoice' },
 ];
 
 const UNPAID_COLUMNS = [
@@ -40,6 +43,8 @@ const PAID_COLUMNS = [
 const CARD_METHOD_KEYS = new Set(['payjp_card', 'omise_card', 'stripe_card']);
 // ゲートウェイが必要な非カード手段のキー（コンビニ・Pay-easyなど）
 const ALT_GATEWAY_KEYS = new Set(['omise_convenience_store', 'omise_pay_easy', 'stripe_konbini']);
+// GMOあおぞら銀行振込キー
+const GMO_AOZORA_KEY = 'gmo_aozora';
 
 export default class PaymentForm extends LightningElement {
     @api memberId;
@@ -56,6 +61,10 @@ export default class PaymentForm extends LightningElement {
 
     // 汎用セレクター用（AllowedPaymentMethods__c が未設定の場合）
     @track paymentMethod = 'credit_card';
+
+    // GMOあおぞら バーチャル口座
+    @track virtualAccountInfo = null;
+    @track isIssuingAccount   = false;
 
     // 決済手段マスターデータ（methodKey → メタデータ）
     _allMethods = [];
@@ -136,6 +145,10 @@ export default class PaymentForm extends LightningElement {
     get paidPayments()      { return this.payments.filter(p => p.PaymentStatus__c === '支払済み'); }
     get hasUnpaidPayments() { return this.unpaidPayments.length > 0; }
     get hasPaidPayments()   { return this.paidPayments.length > 0; }
+
+    get isGmoAozora() {
+        return this._currentMethodKey === GMO_AOZORA_KEY;
+    }
 
     // 金額内訳 getter
     get hasBaseAmount() {
@@ -228,10 +241,11 @@ export default class PaymentForm extends LightningElement {
     // ----------------------------------------------------------------
 
     handleRowAction(event) {
-        this.selectedPayment   = event.detail.row;
-        this.gatewayError      = '';
-        this.isLoadingProvider = true;
-        this._methodFeeResult  = null;
+        this.selectedPayment    = event.detail.row;
+        this.gatewayError       = '';
+        this.isLoadingProvider  = true;
+        this._methodFeeResult   = null;
+        this.virtualAccountInfo = null;
 
         if (this.selectedPayment?.AllowedPaymentMethods__c) {
             const first = this.selectedPayment.AllowedPaymentMethods__c.split(';')[0].trim();
@@ -243,15 +257,22 @@ export default class PaymentForm extends LightningElement {
 
         this.showModal = true;
         this._loadMethodFees();
+        if (this.isGmoAozora && this.selectedPayment.VirtualAccountNumber__c) {
+            this.loadExistingVirtualAccount();
+        }
         if (this.showCardFrame) {
             this._setupMessageListener();
         }
     }
 
     handleMethodRadioChange(event) {
-        this.selectedMethodKey = event.target.value;
-        this.gatewayError = '';
+        this.selectedMethodKey  = event.target.value;
+        this.gatewayError       = '';
+        this.virtualAccountInfo = null;
         this._loadMethodFees();
+        if (this.isGmoAozora && this.selectedPayment?.VirtualAccountNumber__c) {
+            this.loadExistingVirtualAccount();
+        }
         if (this.showCardFrame) {
             this.isLoadingProvider = true;
             this._setupMessageListener();
@@ -261,10 +282,14 @@ export default class PaymentForm extends LightningElement {
     }
 
     handleMethodChange(event) {
-        this.paymentMethod     = event.detail.value;
-        this.selectedMethodKey = event.detail.value;
-        this.gatewayError = '';
+        this.paymentMethod      = event.detail.value;
+        this.selectedMethodKey  = event.detail.value;
+        this.gatewayError       = '';
+        this.virtualAccountInfo = null;
         this._loadMethodFees();
+        if (this.isGmoAozora && this.selectedPayment?.VirtualAccountNumber__c) {
+            this.loadExistingVirtualAccount();
+        }
         if (this.showCardFrame) {
             this.isLoadingProvider = true;
             this._setupMessageListener();
@@ -278,12 +303,37 @@ export default class PaymentForm extends LightningElement {
     }
 
     closeModal() {
-        this.showModal        = false;
-        this.selectedPayment  = null;
-        this.gatewayError     = '';
-        this.isProcessing     = false;
-        this._methodFeeResult = null;
+        this.showModal          = false;
+        this.selectedPayment    = null;
+        this.gatewayError       = '';
+        this.isProcessing       = false;
+        this._methodFeeResult   = null;
+        this.virtualAccountInfo = null;
         this._removeMessageListener();
+    }
+
+    async loadExistingVirtualAccount() {
+        try {
+            const info = await getVirtualAccountInfo({ paymentId: this.selectedPayment.Id });
+            if (info && info.accountNumber) {
+                this.virtualAccountInfo = info;
+            }
+        } catch (e) {
+            // ignore — user can issue manually
+        }
+    }
+
+    async handleGetVirtualAccount() {
+        this.isIssuingAccount = true;
+        try {
+            const info = await createVirtualAccount({ paymentId: this.selectedPayment.Id });
+            this.virtualAccountInfo = info;
+            this.showToast('口座発行完了', '振込先口座を発行しました。', 'success');
+        } catch (e) {
+            this.showToast('エラー', e?.body?.message || '口座発行に失敗しました。', 'error');
+        } finally {
+            this.isIssuingAccount = false;
+        }
     }
 
     async handleNonCardPayment() {
@@ -312,7 +362,6 @@ export default class PaymentForm extends LightningElement {
 
     async handleAlternativeGateway() {
         // コンビニ・Pay-easy などゲートウェイ経由の非カード手段
-        // 実際の処理はプロバイダーAPIで行うが、ここでは申請のみ記録
         await this.handleNonCardPayment();
     }
 

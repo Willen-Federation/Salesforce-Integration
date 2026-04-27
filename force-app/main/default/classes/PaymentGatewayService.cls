@@ -25,6 +25,12 @@ public with sharing class PaymentGatewayService {
                 result = chargeStripe(token, amount, description);
             } else if (provider == 'Fincode') {
                 result = chargeFincode(token, amount, description);
+            } else if (provider == 'GMOあおぞら') {
+                GmoAozoraService.VirtualAccountResult vaResult = GmoAozoraService.createVirtualAccount(paymentId);
+                result.success       = true;
+                result.transactionId = vaResult.transferId;
+                result.provider      = 'GMOあおぞら';
+                return result;
             } else {
                 throw new GatewayException('未対応の決済プロバイダーです: ' + provider);
             }
