@@ -22,6 +22,53 @@ public with sharing class GmoAozoraService {
     }
 
     // ──────────────────────────────────────────────
+    // 外部から参照可能なユーティリティ（GmoAozoraTransferService でも使用）
+    // ──────────────────────────────────────────────
+
+    public static String getBaseUrl(PortalConfiguration__c cfg) {
+        return (cfg.GmoAozoraMode__c == '本番') ? PROD_BASE : STG_BASE;
+    }
+
+    /**
+     * OAuth2 リフレッシュトークンでアクセストークンを取得する。
+     * DML は行わない。新しいリフレッシュトークンが返された場合は呼び出し元で保存すること。
+     *
+     * @return [accessToken, newRefreshToken（変化がなければ null）]
+     */
+    public static String[] refreshToken(PortalConfiguration__c cfg, String baseUrl) {
+        String reqBody = 'grant_type=refresh_token'
+            + '&refresh_token=' + EncodingUtil.urlEncode(cfg.GmoAozoraRefreshToken__c, 'UTF-8')
+            + '&client_id='     + EncodingUtil.urlEncode(cfg.GmoAozoraClientId__c,     'UTF-8')
+            + '&client_secret=' + EncodingUtil.urlEncode(cfg.GmoAozoraClientSecret__c, 'UTF-8');
+
+        HttpRequest req = new HttpRequest();
+        req.setEndpoint(baseUrl + AUTH_PATH);
+        req.setMethod('POST');
+        req.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+        req.setBody(reqBody);
+        req.setTimeout(15000);
+
+        HttpResponse res = new Http().send(req);
+        if (res.getStatusCode() != 200) {
+            throw new GmoAozoraException(
+                'アクセストークン取得失敗 [' + res.getStatusCode() + ']: ' + res.getBody()
+            );
+        }
+
+        Map<String, Object> data = (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
+        String accessToken = (String) data.get('access_token');
+        if (String.isBlank(accessToken)) {
+            throw new GmoAozoraException('アクセストークンが空です。');
+        }
+
+        String newRefresh = (String) data.get('refresh_token');
+        // 変化がなければ null を返す
+        if (newRefresh == cfg.GmoAozoraRefreshToken__c) newRefresh = null;
+
+        return new String[]{ accessToken, newRefresh };
+    }
+
+    // ──────────────────────────────────────────────
     // デフォルト決済プロバイダーを返す
     // ──────────────────────────────────────────────
     @AuraEnabled(cacheable=true)
@@ -66,6 +113,8 @@ public with sharing class GmoAozoraService {
     // ──────────────────────────────────────────────
     // 振込入金口座を発行し Payment__c へ保存して返す
     // POST /ganb/api/corporation/v1/va/issue
+    //
+    // callout → callout → DML の順序を守る（DML 後は callout 不可）
     // ──────────────────────────────────────────────
     @AuraEnabled
     public static VirtualAccountResult createVirtualAccount(Id paymentId) {
@@ -79,7 +128,7 @@ public with sharing class GmoAozoraService {
         }
 
         Payment__c payment = [
-            SELECT Id, Amount__c, VirtualAccountNumber__c
+            SELECT Id, Amount__c, PaymentType__c, VirtualAccountNumber__c
             FROM Payment__c
             WHERE Id = :paymentId
             WITH SECURITY_ENFORCED
@@ -91,26 +140,34 @@ public with sharing class GmoAozoraService {
             return getVirtualAccountInfo(paymentId);
         }
 
+        // 支払種別に対応する raId をカテゴリ設定から取得（なければデフォルト）
+        String raId = resolveRaId(payment.PaymentType__c, cfg.GmoAozoraRaId__c);
+
         String baseUrl = getBaseUrl(cfg);
-        String token   = fetchAccessToken(cfg, baseUrl);
+
+        // Callout 1: アクセストークン取得（DMLなし）
+        String[] tokens       = refreshToken(cfg, baseUrl);
+        String accessToken    = tokens[0];
+        String newRefreshToken = tokens[1];
 
         // 振込入金口座_発行リクエスト
         Map<String, Object> reqBody = new Map<String, Object>{
             'vaTypeCode'        => '2',  // 継続型（有効期限なし）
             'issueRequestCount' => '1'
         };
-        if (String.isNotBlank(cfg.GmoAozoraRaId__c)) {
-            reqBody.put('raId', cfg.GmoAozoraRaId__c);
+        if (String.isNotBlank(raId)) {
+            reqBody.put('raId', raId);
         }
 
         HttpRequest req = new HttpRequest();
         req.setEndpoint(baseUrl + CORP_V1 + '/va/issue');
         req.setMethod('POST');
         req.setHeader('Content-Type', 'application/json');
-        req.setHeader('x-access-token', token);
+        req.setHeader('x-access-token', accessToken);
         req.setBody(JSON.serialize(reqBody));
         req.setTimeout(20000);
 
+        // Callout 2: VA 発行
         HttpResponse res = new Http().send(req);
         if (res.getStatusCode() != 201) {
             throw new GmoAozoraException(
@@ -125,16 +182,22 @@ public with sharing class GmoAozoraService {
         }
         Map<String, Object> va = (Map<String, Object>) vaList[0];
 
-        String vaId            = (String) va.get('vaId');
-        String vaBranchCode    = (String) va.get('vaBranchCode');
+        String vaId             = (String) va.get('vaId');
+        String vaBranchCode     = (String) va.get('vaBranchCode');
         String vaBranchNameKana = (String) va.get('vaBranchNameKana');
-        String vaAccountNumber = (String) va.get('vaAccountNumber');
-        String holderNameKana  = (String) data.get('vaHolderNameKana');
-        String expireDt        = (String) data.get('expireDateTime');
+        String vaAccountNumber  = (String) va.get('vaAccountNumber');
+        String holderNameKana   = (String) data.get('vaHolderNameKana');
+        String expireDt         = (String) data.get('expireDateTime');
 
         Date expiresDate = null;
         if (String.isNotBlank(expireDt)) {
             try { expiresDate = Date.valueOf(expireDt.substring(0, 10)); } catch (Exception ex) {}
+        }
+
+        // DML: すべての callout 完了後にまとめて実行
+        if (String.isNotBlank(newRefreshToken)) {
+            cfg.GmoAozoraRefreshToken__c = newRefreshToken;
+            update cfg;
         }
 
         update new Payment__c(
@@ -162,47 +225,23 @@ public with sharing class GmoAozoraService {
     }
 
     // ──────────────────────────────────────────────
-    // OAuth 2.0 リフレッシュトークンでアクセストークンを取得
-    // POST /ganb/api/auth/v1/token
+    // 支払種別から raId を解決する
+    // GmoAozoraRaConfig__c → デフォルト値（PortalConfiguration__c.GmoAozoraRaId__c）の順で参照
     // ──────────────────────────────────────────────
     @TestVisible
-    private static String fetchAccessToken(PortalConfiguration__c cfg, String baseUrl) {
-        String reqBody = 'grant_type=refresh_token'
-            + '&refresh_token=' + EncodingUtil.urlEncode(cfg.GmoAozoraRefreshToken__c, 'UTF-8')
-            + '&client_id='     + EncodingUtil.urlEncode(cfg.GmoAozoraClientId__c,     'UTF-8')
-            + '&client_secret=' + EncodingUtil.urlEncode(cfg.GmoAozoraClientSecret__c, 'UTF-8');
-
-        HttpRequest req = new HttpRequest();
-        req.setEndpoint(baseUrl + AUTH_PATH);
-        req.setMethod('POST');
-        req.setHeader('Content-Type', 'application/x-www-form-urlencoded');
-        req.setBody(reqBody);
-        req.setTimeout(15000);
-
-        HttpResponse res = new Http().send(req);
-        if (res.getStatusCode() != 200) {
-            throw new GmoAozoraException(
-                'アクセストークン取得失敗 [' + res.getStatusCode() + ']: ' + res.getBody()
-            );
+    private static String resolveRaId(String paymentCategory, String defaultRaId) {
+        if (String.isNotBlank(paymentCategory)) {
+            List<GmoAozoraRaConfig__c> configs = [
+                SELECT RaId__c
+                FROM GmoAozoraRaConfig__c
+                WHERE PaymentCategory__c = :paymentCategory
+                  AND IsActive__c = true
+                LIMIT 1
+            ];
+            if (!configs.isEmpty() && String.isNotBlank(configs[0].RaId__c)) {
+                return configs[0].RaId__c;
+            }
         }
-
-        Map<String, Object> tokenData = (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
-        String accessToken = (String) tokenData.get('access_token');
-        if (String.isBlank(accessToken)) {
-            throw new GmoAozoraException('アクセストークンが空です。');
-        }
-
-        // 新しいリフレッシュトークンが返された場合は保存
-        String newRefresh = (String) tokenData.get('refresh_token');
-        if (String.isNotBlank(newRefresh) && newRefresh != cfg.GmoAozoraRefreshToken__c) {
-            cfg.GmoAozoraRefreshToken__c = newRefresh;
-            update cfg;
-        }
-
-        return accessToken;
-    }
-
-    private static String getBaseUrl(PortalConfiguration__c cfg) {
-        return (cfg.GmoAozoraMode__c == '本番') ? PROD_BASE : STG_BASE;
+        return defaultRaId;
     }
 }

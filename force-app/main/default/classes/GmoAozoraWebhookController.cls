@@ -45,7 +45,7 @@ global without sharing class GmoAozoraWebhookController {
                 return;
             }
 
-            // ── ペイロード解析（vaTransactionオブジェクトから取得）────
+            // ── ペイロード解析 ────────────────────────────────────────
             String  vaAccountNumber  = (String) vaTx.get('vaAccountNumber');
             String  depositAmountStr = (String) vaTx.get('depositAmount');
             String  vaId             = (String) vaTx.get('vaId');
@@ -98,9 +98,17 @@ global without sharing class GmoAozoraWebhookController {
                 PaymentDate__c        = paymentDate != null ? paymentDate : Date.today(),
                 DepositConfirmedAt__c = Datetime.now(),
                 DepositAmount__c      = depositAmount,
-                GmoTransferId__c      = String.isNotBlank(vaId) ? vaId : payment.GmoTransferId__c
+                GmoTransferId__c      = String.isNotBlank(vaId) ? vaId : payment.GmoTransferId__c,
+                AutoTransferStatus__c = '未実行'
             );
 
+            // ── 自動振込（機能がONの場合のみ）───────────────────────
+            PortalConfiguration__c cfg = PortalConfiguration__c.getInstance();
+            if (cfg?.GmoAozoraAutoTransferEnabled__c == true) {
+                System.enqueueJob(new GmoAozoraAutoTransferQueueable(payment.Id, depositAmount));
+            }
+
+            // ── 入金確認メール送信 ────────────────────────────────────
             sendConfirmationAsync(payment.Id);
 
             res.statusCode   = 200;
@@ -113,8 +121,7 @@ global without sharing class GmoAozoraWebhookController {
         }
     }
 
-    // ── HMAC-SHA256 署名検証 ──────────────────────────────────────────
-    // 正しいエンコード: Base64(HMAC-SHA256(body, webhookSecret))
+    // ── HMAC-SHA256 署名検証: Base64(HMAC-SHA256(body, webhookSecret)) ──
     private static Boolean verifyHmacSignature(String body, String signature) {
         PortalConfiguration__c cfg = PortalConfiguration__c.getInstance();
         String secret = cfg?.GmoAozoraWebhookSecret__c;
@@ -127,7 +134,6 @@ global without sharing class GmoAozoraWebhookController {
         return expected == signature;
     }
 
-    // ── 不足入金処理: 管理者アラートを送信 ───────────────────────────
     private static void handleShortPayment(Payment__c payment, Decimal received) {
         String subject = '【要確認】不足入金が発生しました';
         String body    = '支払レコード: ' + payment.Id + '\n'
@@ -138,7 +144,6 @@ global without sharing class GmoAozoraWebhookController {
         EmailNotificationService.sendAdminAlert(subject, body);
     }
 
-    // ── 確認メール送信を @Future で DML 後に実行 ──────────────────────
     @Future
     private static void sendConfirmationAsync(Id paymentId) {
         EmailNotificationService.sendPaymentConfirmation(paymentId);

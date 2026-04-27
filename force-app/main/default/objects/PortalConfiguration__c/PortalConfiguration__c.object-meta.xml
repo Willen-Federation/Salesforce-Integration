@@ -252,6 +252,65 @@
         <length>50</length>
         <required>false</required>
     </fields>
+    <!-- GMO Aozora Auto-Transfer (Sweep) Settings -->
+    <fields>
+        <fullName>GmoAozoraAutoTransferEnabled__c</fullName>
+        <label>GMOあおぞら 自動振込を有効化</label>
+        <type>Checkbox</type>
+        <defaultValue>false</defaultValue>
+        <required>false</required>
+    </fields>
+    <fields>
+        <fullName>GmoAozoraAutoTransferAccountId__c</fullName>
+        <label>自動振込 送金元口座ID (accountId)</label>
+        <description>振込依頼の送金元 GMOあおぞら口座ID（入金先と同じ口座でも可）</description>
+        <type>Text</type>
+        <length>50</length>
+        <required>false</required>
+    </fields>
+    <fields>
+        <fullName>GmoAozoraAutoTransferBankCode__c</fullName>
+        <label>自動振込 振込先 金融機関コード</label>
+        <type>Text</type>
+        <length>4</length>
+        <required>false</required>
+    </fields>
+    <fields>
+        <fullName>GmoAozoraAutoTransferBranchCode__c</fullName>
+        <label>自動振込 振込先 支店コード</label>
+        <type>Text</type>
+        <length>3</length>
+        <required>false</required>
+    </fields>
+    <fields>
+        <fullName>GmoAozoraAutoTransferAccountType__c</fullName>
+        <label>自動振込 振込先 科目コード</label>
+        <description>1=普通, 2=当座, 4=貯蓄</description>
+        <type>Picklist</type>
+        <required>false</required>
+        <valueSet>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>1</fullName><label>普通</label><default>true</default></value>
+                <value><fullName>2</fullName><label>当座</label><default>false</default></value>
+                <value><fullName>4</fullName><label>貯蓄</label><default>false</default></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>GmoAozoraAutoTransferAccountNumber__c</fullName>
+        <label>自動振込 振込先 口座番号</label>
+        <type>Text</type>
+        <length>7</length>
+        <required>false</required>
+    </fields>
+    <fields>
+        <fullName>GmoAozoraAutoTransferBeneficiaryName__c</fullName>
+        <label>自動振込 振込先 受取人名（カナ）</label>
+        <type>Text</type>
+        <length>48</length>
+        <required>false</required>
+    </fields>
     <!-- Fincode Settings -->
     <fields>
         <fullName>FincodeShopId__c</fullName>

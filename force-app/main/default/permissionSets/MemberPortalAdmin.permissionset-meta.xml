@@ -188,4 +188,22 @@
     <apexClassAccesses>
         <apexClass>GmoAozoraWebhookController</apexClass><enabled>true</enabled>
     </apexClassAccesses>
+    <apexClassAccesses>
+        <apexClass>GmoAozoraTransferService</apexClass><enabled>true</enabled>
+    </apexClassAccesses>
+    <apexClassAccesses>
+        <apexClass>GmoAozoraAutoTransferQueueable</apexClass><enabled>true</enabled>
+    </apexClassAccesses>
+    <apexClassAccesses>
+        <apexClass>GmoAozoraRaConfigController</apexClass><enabled>true</enabled>
+    </apexClassAccesses>
+    <apexClassAccesses>
+        <apexClass>PaymentVaTriggerHandler</apexClass><enabled>true</enabled>
+    </apexClassAccesses>
+    <objectPermissions>
+        <allowCreate>true</allowCreate><allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit><allowRead>true</allowRead>
+        <modifyAllRecords>true</modifyAllRecords><viewAllRecords>true</viewAllRecords>
+        <object>GmoAozoraRaConfig__c</object>
+    </objectPermissions>
 </PermissionSet>

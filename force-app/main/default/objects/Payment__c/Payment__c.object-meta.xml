@@ -229,6 +229,31 @@
         <unique>false</unique>
         <externalId>false</externalId>
     </fields>
+    <!-- GMOあおぞら 自動振込情報 -->
+    <fields>
+        <fullName>AutoTransferApplyNo__c</fullName>
+        <label>自動振込 申請番号</label>
+        <type>Text</type>
+        <length>16</length>
+        <required>false</required>
+        <unique>false</unique>
+        <externalId>false</externalId>
+    </fields>
+    <fields>
+        <fullName>AutoTransferStatus__c</fullName>
+        <label>自動振込ステータス</label>
+        <type>Picklist</type>
+        <required>false</required>
+        <trackHistory>true</trackHistory>
+        <valueSet>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>未実行</fullName><label>未実行</label><default>false</default></value>
+                <value><fullName>振込依頼済</fullName><label>振込依頼済</label><default>false</default></value>
+                <value><fullName>振込依頼失敗</fullName><label>振込依頼失敗</label><default>false</default></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
 
     <fields>
         <fullName>ReceiptIssued__c</fullName>

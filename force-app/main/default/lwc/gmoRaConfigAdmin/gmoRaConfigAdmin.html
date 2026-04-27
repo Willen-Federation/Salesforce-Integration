@@ -1,0 +1,124 @@
+<template>
+    <lightning-card title="GMOあおぞら 入金先設定（カテゴリ別 raId）" icon-name="standard:account">
+        <div class="slds-card__body slds-card__body_inner">
+
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="読み込み中" size="small"></lightning-spinner>
+            </template>
+
+            <template if:true={errorMessage}>
+                <div class="slds-notify slds-notify_toast slds-theme_error" role="alert">
+                    <p>{errorMessage}</p>
+                </div>
+            </template>
+
+            <template if:true={saveSuccess}>
+                <div class="slds-notify slds-notify_toast slds-theme_success" role="alert">
+                    <p>保存しました。</p>
+                </div>
+            </template>
+
+            <!-- 説明 -->
+            <p class="slds-text-body_small slds-m-bottom_medium">
+                支払種別（Payment__c.PaymentType__c の値）ごとに GMOあおぞら入金口座ID（raId）を設定します。<br/>
+                設定がない種別は、ポータル設定のデフォルト入金口座IDが使用されます。
+            </p>
+
+            <!-- 一覧テーブル -->
+            <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-m-bottom_medium">
+                <thead>
+                    <tr class="slds-line-height_reset">
+                        <th scope="col"><div class="slds-truncate">設定名</div></th>
+                        <th scope="col"><div class="slds-truncate">支払種別</div></th>
+                        <th scope="col"><div class="slds-truncate">入金口座ID (raId)</div></th>
+                        <th scope="col"><div class="slds-truncate">有効</div></th>
+                        <th scope="col"><div class="slds-truncate">操作</div></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template for:each={configs} for:item="cfg">
+                        <tr key={cfg.Id}>
+                            <td>{cfg.Name}</td>
+                            <td>{cfg.PaymentCategory__c}</td>
+                            <td><code>{cfg.RaId__c}</code></td>
+                            <td>
+                                <template if:true={cfg.IsActive__c}>
+                                    <lightning-icon icon-name="utility:check" size="x-small" variant="success"></lightning-icon>
+                                </template>
+                                <template if:false={cfg.IsActive__c}>
+                                    <lightning-icon icon-name="utility:close" size="x-small" variant="error"></lightning-icon>
+                                </template>
+                            </td>
+                            <td>
+                                <lightning-button-group>
+                                    <lightning-button label="編集" data-id={cfg.Id} onclick={handleEdit}></lightning-button>
+                                    <lightning-button label="削除" variant="destructive" data-id={cfg.Id} onclick={handleDelete}></lightning-button>
+                                </lightning-button-group>
+                            </td>
+                        </tr>
+                    </template>
+                    <template if:false={hasConfigs}>
+                        <tr>
+                            <td colspan="5" class="slds-text-align_center slds-text-color_weak">設定がありません。「新規追加」から設定を作成してください。</td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+
+            <lightning-button variant="brand" label="新規追加" icon-name="utility:add" onclick={handleNew}></lightning-button>
+
+            <!-- 編集モーダル -->
+            <template if:true={showModal}>
+                <section role="dialog" class="slds-modal slds-fade-in-open">
+                    <div class="slds-modal__container">
+                        <header class="slds-modal__header">
+                            <h2 class="slds-text-heading_medium">{modalTitle}</h2>
+                        </header>
+                        <div class="slds-modal__content slds-p-around_medium">
+                            <lightning-input label="設定名" value={editRecord.name} data-field="name" onchange={handleFieldChange} required></lightning-input>
+                            <lightning-combobox
+                                class="slds-m-top_small"
+                                label="支払種別"
+                                value={editRecord.paymentCategory}
+                                options={categoryOptions}
+                                data-field="paymentCategory"
+                                onchange={handleFieldChange}
+                                required>
+                            </lightning-combobox>
+                            <lightning-input
+                                class="slds-m-top_small"
+                                label="入金口座ID (raId)"
+                                value={editRecord.raId}
+                                data-field="raId"
+                                onchange={handleFieldChange}
+                                placeholder="101011234567"
+                                required>
+                            </lightning-input>
+                            <lightning-textarea
+                                class="slds-m-top_small"
+                                label="説明（任意）"
+                                value={editRecord.description}
+                                data-field="description"
+                                onchange={handleFieldChange}>
+                            </lightning-textarea>
+                            <lightning-input
+                                class="slds-m-top_small"
+                                type="checkbox"
+                                label="有効"
+                                checked={editRecord.isActive}
+                                data-field="isActive"
+                                onchange={handleCheckField}>
+                            </lightning-input>
+                        </div>
+                        <footer class="slds-modal__footer">
+                            <lightning-button label="キャンセル" onclick={closeModal}></lightning-button>
+                            <lightning-button label="保存" variant="brand" onclick={handleSave} disabled={isLoading}></lightning-button>
+                        </footer>
+                    </div>
+                </section>
+                <div class="slds-backdrop slds-backdrop_open"></div>
+            </template>
+
+        </div>
+    </lightning-card>
+</template>

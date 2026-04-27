@@ -105,6 +105,36 @@
                     </div>
                 </lightning-accordion-section>
 
+                <!-- GMOあおぞら 自動振込設定 -->
+                <lightning-accordion-section name="gmoAutoTransfer" label="GMOあおぞら 自動振込設定（入金後スイープ）">
+                    <p class="slds-text-body_small slds-m-bottom_small">
+                        有効にすると、振込入金口座に入金が確認された後、自動的に指定口座へ振込依頼を行います。
+                    </p>
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                            <lightning-input type="checkbox" label="自動振込を有効化" data-key="gmoAozoraAutoTransferEnabled" checked={config.gmoAozoraAutoTransferEnabled} onchange={handleCheckChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-p-right_small">
+                            <lightning-input label="送金元 口座ID (accountId)" data-key="gmoAozoraAutoTransferAccountId" value={config.gmoAozoraAutoTransferAccountId} onchange={handleChange} placeholder="101011234567"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input label="振込先 金融機関コード（4桁）" data-key="gmoAozoraAutoTransferBankCode" value={config.gmoAozoraAutoTransferBankCode} onchange={handleChange} placeholder="0398"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3 slds-p-right_small slds-m-top_small">
+                            <lightning-input label="振込先 支店コード（3桁）" data-key="gmoAozoraAutoTransferBranchCode" value={config.gmoAozoraAutoTransferBranchCode} onchange={handleChange} placeholder="101"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3 slds-p-right_small slds-m-top_small">
+                            <lightning-combobox label="科目" data-key="gmoAozoraAutoTransferAccountType" value={config.gmoAozoraAutoTransferAccountType} options={accountTypeOptions} onchange={handleChange}></lightning-combobox>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3 slds-m-top_small">
+                            <lightning-input label="振込先 口座番号（7桁）" data-key="gmoAozoraAutoTransferAccountNumber" value={config.gmoAozoraAutoTransferAccountNumber} onchange={handleChange} placeholder="1234567"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-1 slds-m-top_small">
+                            <lightning-input label="振込先 受取人名（半角カナ）" data-key="gmoAozoraAutoTransferBeneficiaryName" value={config.gmoAozoraAutoTransferBeneficiaryName} onchange={handleChange} placeholder="ｶ)ｻﾝﾌﾟﾙｶｲｼﾔ"></lightning-input>
+                        </div>
+                    </div>
+                </lightning-accordion-section>
+
                 <!-- Pay.jp設定 -->
                 <lightning-accordion-section name="payjp" label="Pay.jp（Visa/Mastercard専用）">
                     <p class="slds-text-body_small slds-m-bottom_small">年会費・寄付金の Visa/Mastercard 決済に使用します。</p>

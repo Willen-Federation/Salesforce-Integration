@@ -15,6 +15,12 @@ export default class PortalConfigAdmin extends LightningElement {
         { label: '本番', value: '本番' }
     ];
 
+    accountTypeOptions = [
+        { label: '普通', value: '1' },
+        { label: '当座', value: '2' },
+        { label: '貯蓄', value: '4' },
+    ];
+
     providerOptions = [
         { label: 'GMOあおぞら（銀行振込）', value: 'GMOあおぞら' },
         { label: 'Pay.jp',                 value: 'Pay.jp' },
