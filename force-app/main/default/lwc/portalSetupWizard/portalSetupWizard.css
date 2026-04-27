@@ -1,0 +1,135 @@
+.wizard-wrapper {
+    max-width: 860px;
+    margin: 0 auto;
+}
+
+/* ステップタイトル */
+.step-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #032d60;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.step-description {
+    color: #706e6b;
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+/* 設定セクション */
+.setting-section {
+    background: #fff;
+    border: 1px solid #dddbda;
+    border-radius: 0.25rem;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+.setting-section__title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #032d60;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+/* 決済プロバイダーボックス */
+.provider-box {
+    background: #f3f2f2;
+    border: 1px solid #dddbda;
+    border-radius: 0.25rem;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.provider-box__title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #032d60;
+    margin-bottom: 1rem;
+}
+
+/* ヘルプボックス */
+.help-box {
+    background: #e8f4fd;
+    border: 1px solid #a9d5f5;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+}
+
+.help-box ol,
+.help-box ul {
+    margin-top: 0.5rem;
+}
+
+.help-box li {
+    margin-bottom: 0.375rem;
+}
+
+/* バッジ */
+.badge-required {
+    display: inline-block;
+    padding: 0.125rem 0.375rem;
+    background: #c23934;
+    color: #fff;
+    border-radius: 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+.badge-optional {
+    display: inline-block;
+    padding: 0.125rem 0.375rem;
+    background: #706e6b;
+    color: #fff;
+    border-radius: 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+/* アイコン */
+.icon-required {
+    --sds-c-icon-color-foreground-default: #c23934;
+}
+
+/* 残作業セクション */
+.remaining-tasks {
+    margin-top: 0.5rem;
+}
+
+.task-content {
+    padding: 1rem;
+}
+
+.namedcred-item {
+    border-left: 3px solid #0070d2;
+    padding-left: 1rem;
+}
+
+.okta-step {
+    border-left: 3px solid #007b5e;
+    padding-left: 1rem;
+}
+
+/* テーブル */
+.slds-table th {
+    background: #f3f2f2;
+    font-weight: 600;
+    white-space: nowrap;
+    vertical-align: top;
+}
+
+.slds-table td code {
+    font-size: 0.8125rem;
+    background: #f3f2f2;
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+}
