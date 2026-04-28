@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workflow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fieldUpdates>
+        <fullName>Payment_SetOverdue</fullName>
+        <label>支払い延滞に更新</label>
+        <field>PaymentStatus__c</field>
+        <literalValue>延滞</literalValue>
+        <notifyAssignee>false</notifyAssignee>
+        <operation>Literal</operation>
+        <protected>false</protected>
+        <reevaluateOnChange>false</reevaluateOnChange>
+    </fieldUpdates>
+    <rules>
+        <fullName>Payment_Overdue_Alert</fullName>
+        <actions>
+            <name>Payment_SetOverdue</name>
+            <type>FieldUpdate</type>
+        </actions>
+        <active>true</active>
+        <criteriaItems>
+            <field>Payment__c.PaymentStatus__c</field>
+            <operation>equals</operation>
+            <value>未払い</value>
+        </criteriaItems>
+        <criteriaItems>
+            <field>Payment__c.DueDate__c</field>
+            <operation>lessThan</operation>
+            <value>TODAY</value>
+        </criteriaItems>
+        <description>支払期限超過時に延滞ステータスへ更新</description>
+        <triggerType>onAllChanges</triggerType>
+    </rules>
+</Workflow>
