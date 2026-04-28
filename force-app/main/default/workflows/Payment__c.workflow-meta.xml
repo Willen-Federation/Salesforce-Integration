@@ -17,16 +17,7 @@
             <type>FieldUpdate</type>
         </actions>
         <active>true</active>
-        <criteriaItems>
-            <field>Payment__c.PaymentStatus__c</field>
-            <operation>equals</operation>
-            <value>未払い</value>
-        </criteriaItems>
-        <criteriaItems>
-            <field>Payment__c.DueDate__c</field>
-            <operation>lessThan</operation>
-            <value>TODAY</value>
-        </criteriaItems>
+        <formula>AND(ISPICKVAL(PaymentStatus__c, &quot;未払い&quot;), DueDate__c &lt; TODAY())</formula>
         <description>支払期限超過時に延滞ステータスへ更新</description>
         <triggerType>onAllChanges</triggerType>
     </rules>

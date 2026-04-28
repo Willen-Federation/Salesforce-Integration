@@ -275,7 +275,6 @@
         <type>AutoNumber</type>
         <displayFormat>RCP-{0000000}</displayFormat>
         <startingNumber>1</startingNumber>
-        <trackHistory>true</trackHistory>
     </fields>
     <fields>
         <fullName>BaseAmount__c</fullName>
