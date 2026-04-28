@@ -57,12 +57,43 @@ jobs:
         run: |
           TEST_LEVEL="${{ github.event.inputs.test_level || 'RunLocalTests' }}"
           echo "Deploying with test level: $TEST_LEVEL"
+          echo "Pre-validating deployment (checkOnly)..."
+          sf project deploy validate \
+            --source-dir force-app \
+            --target-org sandbox \
+            --test-level "$TEST_LEVEL" \
+            --wait 30 \
+            --verbose
+
+          echo "Validation passed. Starting deploy..."
           sf project deploy start \
             --source-dir force-app \
             --target-org sandbox \
             --test-level "$TEST_LEVEL" \
             --wait 30 \
             --verbose
+
+      - name: Show recent deploy report on failure
+        if: failure()
+        run: |
+          sf project deploy list \
+            --target-org sandbox \
+            --json > deploy-list.json || true
+
+          DEPLOY_ID="$(jq -r '.result[0].id // empty' deploy-list.json 2>/dev/null || true)"
+          if [ -n "$DEPLOY_ID" ]; then
+            echo "Latest deploy id: $DEPLOY_ID"
+            sf project deploy report \
+              --job-id "$DEPLOY_ID" \
+              --target-org sandbox \
+              --verbose || true
+            sf project deploy report \
+              --job-id "$DEPLOY_ID" \
+              --target-org sandbox \
+              --json > deploy-report.json || true
+          else
+            echo "No recent deploy id found."
+          fi
 
       - name: Show Apex test results
         if: always()
@@ -78,10 +109,24 @@ jobs:
           echo "Branch: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
 
+      - name: Collect deploy artifacts
+        if: always()
+        run: |
+          mkdir -p deploy-artifacts
+          if [ -d "$HOME/.sf" ]; then
+            cp -r "$HOME/.sf" deploy-artifacts/sf-home
+          fi
+          if [ -f deploy-list.json ]; then
+            cp deploy-list.json deploy-artifacts/
+          fi
+          if [ -f deploy-report.json ]; then
+            cp deploy-report.json deploy-artifacts/
+          fi
+
       - name: Upload deploy results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: sandbox-deploy-${{ github.run_number }}
-          path: .sf/
+          path: deploy-artifacts/
           retention-days: 14
