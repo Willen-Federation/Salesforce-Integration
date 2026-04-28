@@ -22,7 +22,7 @@
         </approvalActions>
         <assignedApprover>
             <approver>
-                <name>admin</name>
+                <name>Manager</name>
                 <type>userHierarchyField</type>
             </approver>
             <whenMultipleApprovers>FirstResponse</whenMultipleApprovers>
@@ -75,7 +75,6 @@
         <useApproverFieldOfRecordOwner>false</useApproverFieldOfRecordOwner>
         <userHierarchyField>Manager</userHierarchyField>
     </nextAutomatedApprover>
-    <postTemplate>MemberPortal/ChangeRequestApprovalResult</postTemplate>
     <recordEditability>AdminOrCurrentApprover</recordEditability>
     <showApprovalHistory>true</showApprovalHistory>
 </ApprovalProcess>
