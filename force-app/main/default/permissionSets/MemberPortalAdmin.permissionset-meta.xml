@@ -13,7 +13,6 @@
     <objectPermissions>
         <allowCreate>true</allowCreate><allowDelete>true</allowDelete>
         <allowEdit>true</allowEdit><allowRead>true</allowRead>
-        <modifyAllRecords>true</modifyAllRecords><viewAllRecords>true</viewAllRecords>
         <object>Payment__c</object>
     </objectPermissions>
     <objectPermissions>
@@ -43,7 +42,6 @@
     <objectPermissions>
         <allowCreate>true</allowCreate><allowDelete>true</allowDelete>
         <allowEdit>true</allowEdit><allowRead>true</allowRead>
-        <modifyAllRecords>true</modifyAllRecords><viewAllRecords>true</viewAllRecords>
         <object>ChangeRequest__c</object>
     </objectPermissions>
     <objectPermissions>
@@ -61,7 +59,6 @@
     <objectPermissions>
         <allowCreate>true</allowCreate><allowDelete>true</allowDelete>
         <allowEdit>true</allowEdit><allowRead>true</allowRead>
-        <modifyAllRecords>true</modifyAllRecords><viewAllRecords>true</viewAllRecords>
         <object>ActivityParticipant__c</object>
     </objectPermissions>
 
