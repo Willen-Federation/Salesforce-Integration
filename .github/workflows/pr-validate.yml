@@ -3,7 +3,7 @@ name: PR Validation
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [main]
+    branches: [staging, production]
 
 concurrency:
   group: pr-validate-${{ github.event.pull_request.number }}
@@ -16,17 +16,32 @@ jobs:
   validate-metadata:
     name: Validate Metadata (Sandbox)
     runs-on: ubuntu-latest
-    # SF_CONSUMER_KEY_SANDBOX が設定されている場合のみ実行
-    if: ${{ vars.SKIP_SF_VALIDATION != 'true' && secrets.SF_CONSUMER_KEY_SANDBOX != '' }}
+    # SKIP_SF_VALIDATION 変数で全体スキップ可能。secret は step 内で確認する
+    # （GitHub Actions は job-level if 句で secrets コンテキスト直接参照を許可しない）
+    if: ${{ vars.SKIP_SF_VALIDATION != 'true' }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check Sandbox secret presence
+        id: check_secret
+        env:
+          SF_CONSUMER_KEY_SANDBOX: ${{ secrets.SF_CONSUMER_KEY_SANDBOX }}
+        run: |
+          if [ -z "$SF_CONSUMER_KEY_SANDBOX" ]; then
+            echo "::warning::SF_CONSUMER_KEY_SANDBOX が未設定のため Sandbox 検証をスキップします"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install Salesforce CLI
+        if: steps.check_secret.outputs.skip != 'true'
         run: |
           npm install --global @salesforce/cli@latest
           sf version
 
       - name: Authenticate to Sandbox (JWT)
+        if: steps.check_secret.outputs.skip != 'true'
         env:
           SF_JWT_PRIVATE_KEY: ${{ secrets.SF_JWT_PRIVATE_KEY }}
           SF_CONSUMER_KEY:    ${{ secrets.SF_CONSUMER_KEY_SANDBOX }}
@@ -42,6 +57,7 @@ jobs:
           rm /tmp/server.key
 
       - name: Validate metadata deployment (checkOnly)
+        if: steps.check_secret.outputs.skip != 'true'
         run: |
           sf project deploy validate \
             --source-dir force-app \
@@ -51,7 +67,7 @@ jobs:
             --verbose
 
       - name: Upload validation results
-        if: always()
+        if: always() && steps.check_secret.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: deploy-validation-${{ github.event.pull_request.number }}

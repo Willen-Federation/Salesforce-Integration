@@ -2,7 +2,7 @@ name: Deploy to Sandbox
 
 on:
   push:
-    branches: [main]
+    branches: [staging]
     paths:
       - 'force-app/**'
       - 'sfdx-project.json'
@@ -45,10 +45,11 @@ jobs:
         run: |
           echo "$SF_JWT_PRIVATE_KEY" > /tmp/server.key
           sf org login jwt \
-            --client-id    "$SF_CONSUMER_KEY" \
-            --jwt-key-file /tmp/server.key \
-            --username     "$SF_USERNAME" \
-            --alias        sandbox \
+            --client-id       "$SF_CONSUMER_KEY" \
+            --jwt-key-file    /tmp/server.key \
+            --username        "$SF_USERNAME" \
+            --instance-url    https://test.salesforce.com \
+            --alias           sandbox \
             --set-default
           rm /tmp/server.key
 
