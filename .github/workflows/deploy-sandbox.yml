@@ -76,11 +76,8 @@ jobs:
               fi
 
               # Pull the latest deploy report for richer diagnostics/retry judgment.
-              sf project deploy list \
-                --target-org sandbox \
-                --json > deploy-list.json || true
               local DEPLOY_ID
-              DEPLOY_ID="$(jq -r '.result[0].id // empty' deploy-list.json 2>/dev/null || true)"
+              DEPLOY_ID="$(grep -Eo 'Deploy ID: [A-Za-z0-9]+' "$LOG_FILE" | tail -n1 | awk '{print $3}')"
               if [ -n "$DEPLOY_ID" ]; then
                 sf project deploy report \
                   --job-id "$DEPLOY_ID" \
@@ -88,7 +85,7 @@ jobs:
                   --json > deploy-report.json || true
               fi
 
-              if { grep -q "UNKNOWN_EXCEPTION" "$LOG_FILE" || grep -q "UNKNOWN_EXCEPTION" deploy-report.json; } && [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
+              if { grep -q "UNKNOWN_EXCEPTION" "$LOG_FILE" || { [ -f deploy-report.json ] && grep -q "UNKNOWN_EXCEPTION" deploy-report.json; }; } && [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
                 local SLEEP_SECONDS=$((ATTEMPT * 60))
                 echo "Transient Salesforce UNKNOWN_EXCEPTION detected in ${STEP_NAME}. Retrying in ${SLEEP_SECONDS}s..."
                 sleep "$SLEEP_SECONDS"
@@ -134,10 +131,7 @@ jobs:
       - name: Show recent deploy report on failure
         if: failure()
         run: |
-          sf project deploy list \
-            --target-org sandbox \
-            --json > deploy-list.json || true
-          DEPLOY_ID="$(jq -r '.result[0].id // empty' deploy-list.json 2>/dev/null || true)"
+          DEPLOY_ID="$(grep -Eo 'Deploy ID: [A-Za-z0-9]+' deploy-start.log validate.log 2>/dev/null | tail -n1 | awk '{print $3}')"
           if [ -n "$DEPLOY_ID" ]; then
             sf project deploy report \
               --job-id "$DEPLOY_ID" \
@@ -175,9 +169,6 @@ jobs:
           fi
           if [ -d "$HOME/.sf" ]; then
             cp -r "$HOME/.sf" deploy-artifacts/sf-home
-          fi
-          if [ -f deploy-list.json ]; then
-            cp deploy-list.json deploy-artifacts/
           fi
           if [ -f deploy-report.json ]; then
             cp deploy-report.json deploy-artifacts/
