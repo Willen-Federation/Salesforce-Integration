@@ -86,16 +86,21 @@ jobs:
             done
           }
 
-          run_with_retry "Validate" validate.log \
-            sf project deploy validate \
-              --source-dir force-app \
-              --target-org sandbox \
-              --test-level "$TEST_LEVEL" \
-              --api-version "$API_VERSION" \
-              --wait 30 \
-              --verbose
+          if [ "$TEST_LEVEL" = "RunAllTestsInOrg" ]; then
+            echo "RunAllTestsInOrg detected. Skipping checkOnly validate due to recurring Salesforce UNKNOWN_EXCEPTION."
+          else
+            run_with_retry "Validate" validate.log \
+              sf project deploy validate \
+                --source-dir force-app \
+                --target-org sandbox \
+                --test-level "$TEST_LEVEL" \
+                --api-version "$API_VERSION" \
+                --wait 30 \
+                --verbose
 
-          echo "Validation passed. Starting actual deploy..."
+            echo "Validation passed. Starting actual deploy..."
+          fi
+
           run_with_retry "Deploy" deploy-start.log \
             sf project deploy start \
               --source-dir force-app \
