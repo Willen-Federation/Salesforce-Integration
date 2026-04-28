@@ -74,12 +74,33 @@ jobs:
               if [ "$EXIT_CODE" -eq 0 ]; then
                 return 0
               fi
-              if grep -q "UNKNOWN_EXCEPTION" "$LOG_FILE" && [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
+
+              # Pull the latest deploy report for richer diagnostics/retry judgment.
+              sf project deploy list \
+                --target-org sandbox \
+                --json > deploy-list.json || true
+              local DEPLOY_ID
+              DEPLOY_ID="$(jq -r '.result[0].id // empty' deploy-list.json 2>/dev/null || true)"
+              if [ -n "$DEPLOY_ID" ]; then
+                sf project deploy report \
+                  --job-id "$DEPLOY_ID" \
+                  --target-org sandbox \
+                  --json > deploy-report.json || true
+              fi
+
+              if { grep -q "UNKNOWN_EXCEPTION" "$LOG_FILE" || grep -q "UNKNOWN_EXCEPTION" deploy-report.json; } && [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
                 local SLEEP_SECONDS=$((ATTEMPT * 60))
                 echo "Transient Salesforce UNKNOWN_EXCEPTION detected in ${STEP_NAME}. Retrying in ${SLEEP_SECONDS}s..."
                 sleep "$SLEEP_SECONDS"
                 ATTEMPT=$((ATTEMPT + 1))
                 continue
+              fi
+              if [ -n "$DEPLOY_ID" ]; then
+                echo "${STEP_NAME} failed. Showing deploy report for ${DEPLOY_ID}:"
+                sf project deploy report \
+                  --job-id "$DEPLOY_ID" \
+                  --target-org sandbox \
+                  --verbose || true
               fi
               echo "${STEP_NAME} failed with non-retriable error or max attempts reached."
               return "$EXIT_CODE"
