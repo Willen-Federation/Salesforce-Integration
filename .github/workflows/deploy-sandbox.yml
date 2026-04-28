@@ -56,43 +56,54 @@ jobs:
       - name: Deploy to Sandbox
         run: |
           TEST_LEVEL="${{ github.event.inputs.test_level || 'RunLocalTests' }}"
+          API_VERSION="59.0"
           echo "Deploying with test level: $TEST_LEVEL"
-          ATTEMPT=1
-          MAX_ATTEMPTS=3
-          while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
-            echo "Deployment attempt: $ATTEMPT/$MAX_ATTEMPTS"
-            set +e
+
+          run_with_retry() {
+            local STEP_NAME="$1"
+            local LOG_FILE="$2"
+            shift 2
+            local ATTEMPT=1
+            local MAX_ATTEMPTS=3
+            while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
+              echo "${STEP_NAME} attempt: $ATTEMPT/$MAX_ATTEMPTS"
+              set +e
+              "$@" 2>&1 | tee "$LOG_FILE"
+              local EXIT_CODE=${PIPESTATUS[0]}
+              set -e
+              if [ "$EXIT_CODE" -eq 0 ]; then
+                return 0
+              fi
+              if grep -q "UNKNOWN_EXCEPTION" "$LOG_FILE" && [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
+                local SLEEP_SECONDS=$((ATTEMPT * 60))
+                echo "Transient Salesforce UNKNOWN_EXCEPTION detected in ${STEP_NAME}. Retrying in ${SLEEP_SECONDS}s..."
+                sleep "$SLEEP_SECONDS"
+                ATTEMPT=$((ATTEMPT + 1))
+                continue
+              fi
+              echo "${STEP_NAME} failed with non-retriable error or max attempts reached."
+              return "$EXIT_CODE"
+            done
+          }
+
+          run_with_retry "Validate" validate.log \
             sf project deploy validate \
               --source-dir force-app \
               --target-org sandbox \
               --test-level "$TEST_LEVEL" \
+              --api-version "$API_VERSION" \
               --wait 30 \
-              --verbose 2>&1 | tee validate.log
-            EXIT_CODE=${PIPESTATUS[0]}
-            set -e
+              --verbose
 
-            if [ "$EXIT_CODE" -eq 0 ]; then
-              echo "Validation passed. Starting actual deploy..."
-              sf project deploy start \
-                --source-dir force-app \
-                --target-org sandbox \
-                --test-level "$TEST_LEVEL" \
-                --wait 30 \
-                --verbose
-              break
-            fi
-
-            if grep -q "UNKNOWN_EXCEPTION" validate.log && [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
-              SLEEP_SECONDS=$((ATTEMPT * 60))
-              echo "Transient Salesforce UNKNOWN_EXCEPTION detected. Retrying in ${SLEEP_SECONDS}s..."
-              sleep "$SLEEP_SECONDS"
-              ATTEMPT=$((ATTEMPT + 1))
-              continue
-            fi
-
-            echo "Validation failed with non-retriable error or max attempts reached."
-            exit "$EXIT_CODE"
-          done
+          echo "Validation passed. Starting actual deploy..."
+          run_with_retry "Deploy" deploy-start.log \
+            sf project deploy start \
+              --source-dir force-app \
+              --target-org sandbox \
+              --test-level "$TEST_LEVEL" \
+              --api-version "$API_VERSION" \
+              --wait 30 \
+              --verbose
 
       - name: Show recent deploy report on failure
         if: failure()
@@ -132,6 +143,9 @@ jobs:
           mkdir -p deploy-artifacts
           if [ -f validate.log ]; then
             cp validate.log deploy-artifacts/
+          fi
+          if [ -f deploy-start.log ]; then
+            cp deploy-start.log deploy-artifacts/
           fi
           if [ -d "$HOME/.sf" ]; then
             cp -r "$HOME/.sf" deploy-artifacts/sf-home
