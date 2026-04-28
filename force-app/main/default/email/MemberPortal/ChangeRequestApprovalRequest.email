@@ -1,0 +1,16 @@
+{!Receiving_User.Name} 様
+
+以下の変更申請の承認をお願いいたします。
+
+■ 申請番号    : {!ChangeRequest__c.Name}
+■ 申請種別    : {!ChangeRequest__c.RequestType__c}
+■ 優先度      : {!ChangeRequest__c.Priority__c}
+■ 申請日      : {!ChangeRequest__c.RequestDate__c}
+■ 申請者      : {!ChangeRequest__c.RequesterMember__r.LastName__c} {!ChangeRequest__c.RequesterMember__r.FirstName__c}
+■ 申請内容    :
+{!ChangeRequest__c.Description__c}
+
+Salesforceの承認一覧よりご対応をお願いいたします。
+
+──────────────────────────────────
+※本メールはシステムより自動送信されております。

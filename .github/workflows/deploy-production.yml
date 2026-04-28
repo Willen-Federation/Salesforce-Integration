@@ -1,7 +1,14 @@
 name: Deploy to Production
 
-# 本番デプロイは手動トリガーのみ
 on:
+  # production ブランチへのマージで自動デプロイ
+  push:
+    branches: [production]
+    paths:
+      - 'force-app/**'
+      - 'sfdx-project.json'
+
+  # 手動実行（ドライランや緊急デプロイ用）
   workflow_dispatch:
     inputs:
       confirm:
@@ -24,22 +31,35 @@ on:
 
 jobs:
   # ──────────────────────────────────────────────
-  # 確認チェック
+  # 事前チェック（push時はスキップ、手動時は確認文字列を検証）
   # ──────────────────────────────────────────────
   preflight:
     name: Preflight Check
     runs-on: ubuntu-latest
+    outputs:
+      test_level: ${{ steps.params.outputs.test_level }}
+      dry_run:    ${{ steps.params.outputs.dry_run }}
     steps:
-      - name: Verify confirmation input
+      - name: Verify trigger and set parameters
+        id: params
         run: |
-          if [ "${{ github.event.inputs.confirm }}" != "deploy" ]; then
-            echo "❌ 確認文字列が正しくありません。'deploy' と入力してください。"
-            exit 1
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "✅ 自動デプロイ (production ブランチへの push)"
+            echo "   Triggered by: ${{ github.actor }}"
+            echo "   Commit: ${{ github.sha }}"
+            echo "test_level=RunLocalTests" >> $GITHUB_OUTPUT
+            echo "dry_run=false"           >> $GITHUB_OUTPUT
+          else
+            if [ "${{ github.event.inputs.confirm }}" != "deploy" ]; then
+              echo "❌ 確認文字列が正しくありません。'deploy' と入力してください。"
+              exit 1
+            fi
+            echo "✅ 手動デプロイ確認OK"
+            echo "   Triggered by: ${{ github.actor }}"
+            echo "   Dry run: ${{ github.event.inputs.dry_run }}"
+            echo "test_level=${{ github.event.inputs.test_level }}" >> $GITHUB_OUTPUT
+            echo "dry_run=${{ github.event.inputs.dry_run }}"       >> $GITHUB_OUTPUT
           fi
-          echo "✅ Confirmation OK"
-          echo "Triggered by: ${{ github.actor }}"
-          echo "Ref: ${{ github.ref_name }}"
-          echo "Dry run: ${{ github.event.inputs.dry_run }}"
 
   # ──────────────────────────────────────────────
   # 本番デプロイ
@@ -82,21 +102,21 @@ jobs:
           sf project deploy validate \
             --source-dir force-app \
             --target-org production \
-            --test-level ${{ github.event.inputs.test_level }} \
+            --test-level ${{ needs.preflight.outputs.test_level }} \
             --wait 30
 
       - name: Deploy to Production
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+        if: needs.preflight.outputs.dry_run != 'true'
         run: |
           sf project deploy start \
             --source-dir force-app \
             --target-org production \
-            --test-level ${{ github.event.inputs.test_level }} \
+            --test-level ${{ needs.preflight.outputs.test_level }} \
             --wait 60 \
             --verbose
 
       - name: Skip (dry run mode)
-        if: ${{ github.event.inputs.dry_run == 'true' }}
+        if: needs.preflight.outputs.dry_run == 'true'
         run: echo "⚠️ Dry run mode — メタデータ検証のみ実行しました。デプロイはスキップされました。"
 
       - name: Show Apex test results
@@ -121,8 +141,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| 項目 | 値 |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| トリガー | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 実行者 | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
           echo "| コミット | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| テストレベル | ${{ github.event.inputs.test_level }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ドライラン | ${{ github.event.inputs.dry_run }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| テストレベル | ${{ needs.preflight.outputs.test_level }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ドライラン | ${{ needs.preflight.outputs.dry_run }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 日時 (UTC) | $(date '+%Y-%m-%d %H:%M:%S') |" >> $GITHUB_STEP_SUMMARY

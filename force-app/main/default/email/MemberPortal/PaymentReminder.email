@@ -1,0 +1,14 @@
+{!Payment__c.Member__r.LastName__c} {!Payment__c.Member__r.FirstName__c} 様
+
+以下のお支払いが発生しております。期限までにお手続きをお願いいたします。
+
+■ 支払い番号  : {!Payment__c.Name}
+■ 種別        : {!Payment__c.PaymentType__c}
+■ 金額        : {!Payment__c.Amount__c} 円
+■ 支払期限    : {!Payment__c.DueDate__c}
+■ 摘要        : {!Payment__c.Description__c}
+
+ポータルサイトよりお支払い手続きをお願いいたします。
+
+──────────────────────────────────
+※本メールはシステムより自動送信されております。

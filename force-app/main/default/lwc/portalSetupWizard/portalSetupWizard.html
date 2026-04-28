@@ -1,0 +1,990 @@
+<template>
+    <div class="wizard-wrapper">
+        <lightning-card title="ポータル 初期セットアップウィザード" icon-name="utility:setup">
+
+            <!-- ローディング -->
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="処理中..." size="medium"></lightning-spinner>
+            </template>
+
+            <!-- エラーメッセージ -->
+            <template if:true={errorMessage}>
+                <div class="slds-scoped-notification slds-media slds-media_center slds-scoped-notification_error slds-m-horizontal_medium slds-m-top_medium" role="status">
+                    <div class="slds-media__figure slds-scoped-notification__figure">
+                        <lightning-icon icon-name="utility:error" alternative-text="エラー" size="small" variant="inverse"></lightning-icon>
+                    </div>
+                    <div class="slds-media__body">
+                        <p>{errorMessage}</p>
+                    </div>
+                </div>
+            </template>
+
+            <!-- 成功メッセージ -->
+            <template if:true={successMessage}>
+                <div class="slds-scoped-notification slds-media slds-media_center slds-scoped-notification_success slds-m-horizontal_medium slds-m-top_medium" role="status">
+                    <div class="slds-media__figure slds-scoped-notification__figure">
+                        <lightning-icon icon-name="utility:success" alternative-text="成功" size="small" variant="inverse"></lightning-icon>
+                    </div>
+                    <div class="slds-media__body">
+                        <p>{successMessage}</p>
+                    </div>
+                </div>
+            </template>
+
+            <!-- ステッププログレス -->
+            <div class="slds-p-horizontal_large slds-p-top_medium">
+                <lightning-progress-indicator current-step={currentStep} type="path" has-error="false">
+                    <lightning-progress-step label="準備" value="welcome"></lightning-progress-step>
+                    <lightning-progress-step label="基本設定" value="basic"></lightning-progress-step>
+                    <lightning-progress-step label="決済設定" value="payment"></lightning-progress-step>
+                    <lightning-progress-step label="年会費" value="fees"></lightning-progress-step>
+                    <lightning-progress-step label="認証設定" value="auth"></lightning-progress-step>
+                    <lightning-progress-step label="完了" value="complete"></lightning-progress-step>
+                </lightning-progress-indicator>
+            </div>
+
+            <div class="slds-p-around_large">
+
+                <!-- ============================================================ -->
+                <!-- STEP 0: ようこそ                                              -->
+                <!-- ============================================================ -->
+                <template if:true={isStepWelcome}>
+                    <div class="slds-text-align_center slds-m-bottom_large">
+                        <div class="slds-m-bottom_medium">
+                            <lightning-icon icon-name="standard:portal" size="large"></lightning-icon>
+                        </div>
+                        <h2 class="slds-text-heading_large slds-m-bottom_small">MemberPortal へようこそ</h2>
+                        <p class="slds-text-body_regular slds-text-color_weak">
+                            このウィザードでポータルの初期設定を完了できます。所要時間は約 10 分です。<br>
+                            設定はウィザード完了後も「ポータル設定（管理者）」画面からいつでも変更できます。
+                        </p>
+                    </div>
+
+                    <div class="slds-box slds-theme_shade slds-m-bottom_medium">
+                        <h3 class="slds-text-heading_small slds-m-bottom_medium">
+                            <lightning-icon icon-name="utility:checklist" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                            始める前に準備してください
+                        </h3>
+                        <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_small">
+                            使用する機能に応じて以下の情報を事前にご用意ください。
+                        </p>
+                        <ul class="slds-has-dividers_bottom-space">
+                            <li class="slds-item slds-p-vertical_x-small">
+                                <div class="slds-grid slds-wrap">
+                                    <div class="slds-col slds-size_1-of-12 slds-text-align_center">
+                                        <lightning-icon icon-name="utility:email" size="x-small" class="icon-required"></lightning-icon>
+                                    </div>
+                                    <div class="slds-col slds-size_11-of-12">
+                                        <span class="slds-text-title_bold">送信元メールアドレス</span>
+                                        <span class="badge-required slds-m-left_x-small">必須</span>
+                                        <p class="slds-text-body_small slds-text-color_weak">会員へのメール通知（入会確認・支払い案内など）の送信元として使用します</p>
+                                    </div>
+                                </div>
+                            </li>
+                            <li class="slds-item slds-p-vertical_x-small">
+                                <div class="slds-grid slds-wrap">
+                                    <div class="slds-col slds-size_1-of-12 slds-text-align_center">
+                                        <lightning-icon icon-name="utility:world" size="x-small" class="icon-required"></lightning-icon>
+                                    </div>
+                                    <div class="slds-col slds-size_11-of-12">
+                                        <span class="slds-text-title_bold">ポータルの URL</span>
+                                        <span class="badge-required slds-m-left_x-small">必須</span>
+                                        <p class="slds-text-body_small slds-text-color_weak">
+                                            Experience Cloud サイトの URL（例: <code>https://your-org.my.site.com/member</code>）<br>
+                                            Salesforce Setup → デジタルエクスペリエンス → すべてのサイト で確認できます
+                                        </p>
+                                    </div>
+                                </div>
+                            </li>
+                            <li class="slds-item slds-p-vertical_x-small">
+                                <div class="slds-grid slds-wrap">
+                                    <div class="slds-col slds-size_1-of-12 slds-text-align_center">
+                                        <lightning-icon icon-name="utility:currency_input" size="x-small" class="icon-required"></lightning-icon>
+                                    </div>
+                                    <div class="slds-col slds-size_11-of-12">
+                                        <span class="slds-text-title_bold">決済プロバイダーの API キー</span>
+                                        <span class="badge-required slds-m-left_x-small">必須</span>
+                                        <p class="slds-text-body_small slds-text-color_weak">Pay.jp / Omise / Stripe / Fincode / GMO あおぞらのいずれかの公開キーとシークレットキー</p>
+                                    </div>
+                                </div>
+                            </li>
+                            <li class="slds-item slds-p-vertical_x-small">
+                                <div class="slds-grid slds-wrap">
+                                    <div class="slds-col slds-size_1-of-12 slds-text-align_center">
+                                        <lightning-icon icon-name="utility:chat" size="x-small"></lightning-icon>
+                                    </div>
+                                    <div class="slds-col slds-size_11-of-12">
+                                        <span class="slds-text-title_bold">Slack Bot Token</span>
+                                        <span class="badge-optional slds-m-left_x-small">任意</span>
+                                        <p class="slds-text-body_small slds-text-color_weak"><code>xoxb-...</code> の形式。人事異動通知・問い合わせ通知を Slack に送る場合に必要です</p>
+                                    </div>
+                                </div>
+                            </li>
+                            <li class="slds-item slds-p-vertical_x-small">
+                                <div class="slds-grid slds-wrap">
+                                    <div class="slds-col slds-size_1-of-12 slds-text-align_center">
+                                        <lightning-icon icon-name="utility:shield" size="x-small"></lightning-icon>
+                                    </div>
+                                    <div class="slds-col slds-size_11-of-12">
+                                        <span class="slds-text-title_bold">Okta ドメインと API トークン</span>
+                                        <span class="badge-optional slds-m-left_x-small">任意</span>
+                                        <p class="slds-text-body_small slds-text-color_weak">Okta SSO（シングルサインオン）でポータルにログインさせる場合に必要です</p>
+                                    </div>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="slds-notify slds-notify_alert slds-theme_info" role="status">
+                        <lightning-icon icon-name="utility:info" size="x-small" class="slds-m-right_x-small" variant="inverse"></lightning-icon>
+                        <span class="slds-assistive-text">情報</span>
+                        <span>準備が整ったら「次へ」をクリックして設定を開始してください。途中で保存して後から再開することもできます。</span>
+                    </div>
+                </template>
+
+                <!-- ============================================================ -->
+                <!-- STEP 1: 基本設定                                             -->
+                <!-- ============================================================ -->
+                <template if:true={isStepBasic}>
+                    <h2 class="step-title">
+                        <lightning-icon icon-name="utility:settings" size="small" class="slds-m-right_small"></lightning-icon>
+                        基本設定
+                    </h2>
+                    <p class="step-description">
+                        組織の基本情報と通知設定を入力してください。<span class="slds-text-color_error">*</span> は必須項目です。
+                    </p>
+
+                    <!-- 組織情報 -->
+                    <div class="setting-section">
+                        <h3 class="setting-section__title">組織情報</h3>
+                        <div class="slds-form slds-form_stacked">
+                            <lightning-input
+                                label="組織名"
+                                value={config.organizationName}
+                                data-key="organizationName"
+                                onchange={handleChange}
+                                required
+                                field-level-help="メール送信者名やポータル画面のタイトルとして表示されます"
+                                placeholder="例: 株式会社○○"
+                                class="slds-m-bottom_small"
+                            ></lightning-input>
+                            <lightning-input
+                                label="送信元メールアドレス"
+                                type="email"
+                                value={config.fromEmailAddress}
+                                data-key="fromEmailAddress"
+                                onchange={handleChange}
+                                required
+                                field-level-help="会員への通知メール（入会確認・支払い案内など）の送信元となるアドレスです"
+                                placeholder="例: noreply@your-org.com"
+                                class="slds-m-bottom_small"
+                            ></lightning-input>
+                            <lightning-input
+                                label="ポータルの URL"
+                                type="url"
+                                value={config.portalBaseUrl}
+                                data-key="portalBaseUrl"
+                                onchange={handleChange}
+                                required
+                                field-level-help="Experience Cloud サイトの URL です。メール本文内のリンクに使用されます。Setup → デジタルエクスペリエンス → すべてのサイト で確認できます"
+                                placeholder="https://your-org.my.site.com/member"
+                            ></lightning-input>
+                        </div>
+                    </div>
+
+                    <!-- Slack 設定 -->
+                    <div class="setting-section">
+                        <h3 class="setting-section__title">
+                            Slack 通知設定
+                            <span class="slds-text-body_small slds-text-color_weak slds-m-left_x-small">（任意）</span>
+                        </h3>
+                        <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_small">
+                            人事異動通知・サポート問い合わせなどを Slack チャンネルへ送信できます。
+                            使用しない場合はチェックを外したまま次へ進んでください。
+                        </p>
+                        <lightning-input
+                            type="checkbox"
+                            label="Slack 通知を有効にする"
+                            checked={config.enableSlackNotification}
+                            data-key="enableSlackNotification"
+                            onchange={handleCheckChange}
+                            class="slds-m-bottom_small"
+                        ></lightning-input>
+
+                        <template if:true={config.enableSlackNotification}>
+                            <div class="slds-box slds-box_small slds-theme_shade slds-m-bottom_small">
+                                <lightning-input
+                                    label="Slack Bot Token"
+                                    type="password"
+                                    data-key="slackBotToken"
+                                    onchange={handleChange}
+                                    field-level-help="Slack アプリの Bot User OAuth Token（xoxb-... の形式）。取得方法は下の説明を参照してください"
+                                    placeholder="xoxb-XXXXXXXXXX-XXXXXXXXXXXXXXX..."
+                                    class="slds-m-bottom_small"
+                                ></lightning-input>
+                                <lightning-input
+                                    label="サポート通知チャネル ID"
+                                    data-key="supportSlackChannelId"
+                                    onchange={handleChange}
+                                    field-level-help="サポート問い合わせの通知先 Slack チャネルの ID（C から始まる英数字）。チャンネル右クリック → 「チャンネルへのリンクをコピー」の末尾の値です"
+                                    placeholder="例: C01234ABCDE"
+                                ></lightning-input>
+                            </div>
+
+                            <!-- Slack Token 取得ガイド -->
+                            <div class="help-box">
+                                <h4 class="slds-text-title_bold slds-m-bottom_x-small">
+                                    <lightning-icon icon-name="utility:question" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                                    Slack Bot Token の取得方法
+                                </h4>
+                                <ol class="slds-list_ordered slds-p-left_large">
+                                    <li class="slds-item">
+                                        <a href="https://api.slack.com/apps" target="_blank" rel="noopener">api.slack.com/apps</a>
+                                        にアクセスし「Create New App」→「From Scratch」を選択
+                                    </li>
+                                    <li class="slds-item">アプリ名を入力し、通知を送りたいワークスペースを選択</li>
+                                    <li class="slds-item">左メニューの「OAuth &amp; Permissions」を開く</li>
+                                    <li class="slds-item">「Bot Token Scopes」で <code>chat:write</code> を追加</li>
+                                    <li class="slds-item">ページ上部の「Install to Workspace」をクリックしてインストール</li>
+                                    <li class="slds-item">表示された「<strong>Bot User OAuth Token（xoxb-...）</strong>」をコピーして上の欄に貼り付ける</li>
+                                </ol>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- ============================================================ -->
+                <!-- STEP 2: 決済プロバイダー設定                                  -->
+                <!-- ============================================================ -->
+                <template if:true={isStepPayment}>
+                    <h2 class="step-title">
+                        <lightning-icon icon-name="utility:currency_input" size="small" class="slds-m-right_small"></lightning-icon>
+                        決済プロバイダー設定
+                    </h2>
+                    <p class="step-description">
+                        使用する決済プロバイダーを選択し、API キーを入力してください。
+                        API キーは各サービスのダッシュボードから取得できます。
+                    </p>
+
+                    <div class="setting-section">
+                        <lightning-combobox
+                            label="使用する決済プロバイダー"
+                            value={config.defaultPaymentProvider}
+                            options={providerOptions}
+                            data-key="defaultPaymentProvider"
+                            onchange={handleProviderChange}
+                            field-level-help="会員が支払いフォームを開いたときに最初に表示されるプロバイダーです。設定完了後に「ポータル設定（管理者）」から追加・変更できます"
+                            required
+                            class="slds-m-bottom_large"
+                        ></lightning-combobox>
+
+                        <!-- GMO あおぞら -->
+                        <template if:true={isGmoSelected}>
+                            <div class="provider-box">
+                                <h3 class="provider-box__title">GMO あおぞら ネット銀行</h3>
+                                <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_medium">
+                                    GMO あおぞらネット銀行の法人口座を使った銀行振込設定です。
+                                    API 情報は
+                                    <a href="https://gmo-aozora.com/business/" target="_blank" rel="noopener">GMO あおぞら法人向けサイト</a>
+                                    から契約後に取得できます。
+                                </p>
+                                <lightning-combobox
+                                    label="環境"
+                                    value={config.gmoAozoraMode}
+                                    options={modeOptions}
+                                    data-key="gmoAozoraMode"
+                                    onchange={handleChange}
+                                    field-level-help="本番運用前は「テスト」を選択してください。テスト環境では実際の入金は発生しません"
+                                    class="slds-m-bottom_small"
+                                ></lightning-combobox>
+                                <lightning-input
+                                    label="クライアント ID"
+                                    value={config.gmoAozoraClientId}
+                                    data-key="gmoAozoraClientId"
+                                    onchange={handleChange}
+                                    field-level-help="GMO あおぞら法人 API 管理コンソールで確認できます"
+                                    placeholder="GMO あおぞら管理コンソールで確認"
+                                    class="slds-m-bottom_small"
+                                ></lightning-input>
+                                <lightning-input
+                                    label="クライアントシークレット"
+                                    type="password"
+                                    data-key="gmoAozoraClientSecret"
+                                    onchange={handleChange}
+                                    field-level-help="クライアント ID に対応するシークレット。第三者に知られないよう管理してください"
+                                    class="slds-m-bottom_small"
+                                ></lightning-input>
+                                <lightning-input
+                                    label="入金口座 ID（raId）"
+                                    value={config.gmoAozoraRaId}
+                                    data-key="gmoAozoraRaId"
+                                    onchange={handleChange}
+                                    field-level-help="会員からの振込入金を受け取る口座の ID です"
+                                    placeholder="例: 101011234567"
+                                    class="slds-m-bottom_small"
+                                ></lightning-input>
+                                <lightning-input
+                                    label="Webhook シークレット"
+                                    type="password"
+                                    data-key="gmoAozoraWebhookSecret"
+                                    onchange={handleChange}
+                                    field-level-help="入金通知（Webhook）の正当性を検証するためのシークレットです"
+                                ></lightning-input>
+                            </div>
+                        </template>
+
+                        <!-- Pay.jp -->
+                        <template if:true={isPayjpSelected}>
+                            <div class="provider-box">
+                                <h3 class="provider-box__title">Pay.jp</h3>
+                                <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_medium">
+                                    API キーは
+                                    <a href="https://pay.jp/d/apikeys" target="_blank" rel="noopener">Pay.jp ダッシュボード → API</a>
+                                    から確認できます。テスト環境では <code>pk_test_</code> / <code>sk_test_</code> で始まるキーを使用してください。
+                                </p>
+                                <lightning-combobox
+                                    label="環境"
+                                    value={config.payjpMode}
+                                    options={modeOptions}
+                                    data-key="payjpMode"
+                                    onchange={handleChange}
+                                    class="slds-m-bottom_small"
+                                ></lightning-combobox>
+                                <lightning-input
+                                    label="公開キー（Public Key）"
+                                    value={config.payjpPublicKey}
+                                    data-key="payjpPublicKey"
+                                    onchange={handleChange}
+                                    field-level-help="ブラウザ上でカードトークン化に使用します。公開しても問題ありません"
+                                    placeholder="pk_test_..."
+                                    class="slds-m-bottom_small"
+                                ></lightning-input>
+                                <lightning-input
+                                    label="シークレットキー（Secret Key）"
+                                    type="password"
+                                    data-key="payjpSecretKey"
+                                    onchange={handleChange}
+                                    field-level-help="サーバー側での決済処理に使用します。絶対に外部に漏らさないでください"
+                                    placeholder="sk_test_..."
+                                    class="slds-m-bottom_small"
+                                ></lightning-input>
+                                <lightning-input
+                                    label="口座振替申込書 URL（任意）"
+                                    type="url"
+                                    value={config.directDebitFormUrl}
+                                    data-key="directDebitFormUrl"
+                                    onchange={handleChange}
+                                    field-level-help="会員が「口座振替」を選択した際のリダイレクト先 URL です"
+                                    placeholder="https://example.com/direct-debit-form.pdf"
+                                ></lightning-input>
+                            </div>
+                        </template>
+
+                        <!-- Omise -->
+                        <template if:true={isOmiseSelected}>
+                            <div class="provider-box">
+                                <h3 class="provider-box__title">Omise</h3>
+                                <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_medium">
+                                    API キーは
+                                    <a href="https://dashboard.omise.co/test/api-keys" target="_blank" rel="noopener">Omise ダッシュボード → API Keys</a>
+                                    から確認できます。
+                                </p>
+                                <lightning-combobox
+                                    label="環境"
+                                    value={config.omiseMode}
+                                    options={modeOptions}
+                                    data-key="omiseMode"
+                                    onchange={handleChange}
+                                    class="slds-m-bottom_small"
+                                ></lightning-combobox>
+                                <lightning-input
+                                    label="公開キー"
+                                    value={config.omisePublicKey}
+                                    data-key="omisePublicKey"
+                                    onchange={handleChange}
+                                    placeholder="pkey_test_..."
+                                    class="slds-m-bottom_small"
+                                ></lightning-input>
+                                <lightning-input
+                                    label="シークレットキー"
+                                    type="password"
+                                    data-key="omiseSecretKey"
+                                    onchange={handleChange}
+                                    placeholder="skey_test_..."
+                                ></lightning-input>
+                            </div>
+                        </template>
+
+                        <!-- Stripe -->
+                        <template if:true={isStripeSelected}>
+                            <div class="provider-box">
+                                <h3 class="provider-box__title">Stripe</h3>
+                                <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_medium">
+                                    API キーは
+                                    <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Stripe ダッシュボード → Developers → API Keys</a>
+                                    から確認できます。
+                                </p>
+                                <lightning-combobox
+                                    label="環境"
+                                    value={config.stripeMode}
+                                    options={modeOptions}
+                                    data-key="stripeMode"
+                                    onchange={handleChange}
+                                    class="slds-m-bottom_small"
+                                ></lightning-combobox>
+                                <lightning-input
+                                    label="公開キー（Publishable Key）"
+                                    value={config.stripePublicKey}
+                                    data-key="stripePublicKey"
+                                    onchange={handleChange}
+                                    placeholder="pk_test_..."
+                                    class="slds-m-bottom_small"
+                                ></lightning-input>
+                                <lightning-input
+                                    label="シークレットキー（Secret Key）"
+                                    type="password"
+                                    data-key="stripeSecretKey"
+                                    onchange={handleChange}
+                                    placeholder="sk_test_..."
+                                ></lightning-input>
+                            </div>
+                        </template>
+
+                        <!-- Fincode -->
+                        <template if:true={isFincodeSelected}>
+                            <div class="provider-box">
+                                <h3 class="provider-box__title">Fincode</h3>
+                                <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_medium">
+                                    ショップ ID と API キーは Fincode 管理ダッシュボードから確認できます。
+                                </p>
+                                <lightning-combobox
+                                    label="環境"
+                                    value={config.fincodeMode}
+                                    options={modeOptions}
+                                    data-key="fincodeMode"
+                                    onchange={handleChange}
+                                    class="slds-m-bottom_small"
+                                ></lightning-combobox>
+                                <lightning-input
+                                    label="ショップ ID"
+                                    value={config.fincodeShopId}
+                                    data-key="fincodeShopId"
+                                    onchange={handleChange}
+                                    class="slds-m-bottom_small"
+                                ></lightning-input>
+                                <lightning-input
+                                    label="公開キー"
+                                    value={config.fincodePublicKey}
+                                    data-key="fincodePublicKey"
+                                    onchange={handleChange}
+                                    class="slds-m-bottom_small"
+                                ></lightning-input>
+                                <lightning-input
+                                    label="シークレットキー"
+                                    type="password"
+                                    data-key="fincodeSecretKey"
+                                    onchange={handleChange}
+                                ></lightning-input>
+                            </div>
+                        </template>
+
+                        <!-- 口座振替 -->
+                        <template if:true={isDirectDebitSelected}>
+                            <div class="provider-box">
+                                <h3 class="provider-box__title">口座振替</h3>
+                                <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_medium">
+                                    会員が「口座振替」を選択した際に表示する申込フォームのURLを設定します。
+                                </p>
+                                <lightning-input
+                                    label="口座振替申込書 URL"
+                                    type="url"
+                                    value={config.directDebitFormUrl}
+                                    data-key="directDebitFormUrl"
+                                    onchange={handleChange}
+                                    field-level-help="外部の申込フォームや PDF へのリンクを入力してください"
+                                    placeholder="https://example.com/direct-debit-form.pdf"
+                                ></lightning-input>
+                            </div>
+                        </template>
+
+                        <div class="help-box slds-m-top_medium">
+                            <lightning-icon icon-name="utility:info" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                            複数の決済プロバイダーを追加したい場合は、ウィザード完了後に「ポータル設定（管理者）」から設定できます。
+                        </div>
+                    </div>
+                </template>
+
+                <!-- ============================================================ -->
+                <!-- STEP 3: 年会費・機能設定                                      -->
+                <!-- ============================================================ -->
+                <template if:true={isStepFees}>
+                    <h2 class="step-title">
+                        <lightning-icon icon-name="utility:moneybag" size="small" class="slds-m-right_small"></lightning-icon>
+                        年会費・機能設定
+                    </h2>
+                    <p class="step-description">
+                        会員種別ごとの年会費を設定します。金額は円（税込）で入力してください。
+                        後から変更できるので、現時点での予定額を入力してください。
+                    </p>
+
+                    <div class="setting-section">
+                        <h3 class="setting-section__title">年会費（円）</h3>
+                        <div class="slds-form slds-form_stacked">
+                            <lightning-input
+                                label="個人会員"
+                                type="number"
+                                min="0"
+                                formatter="decimal"
+                                value={config.annualFeeIndividual}
+                                data-key="annualFeeIndividual"
+                                onchange={handleChange}
+                                field-level-help="一般の個人会員に年間請求する金額"
+                                placeholder="例: 12000"
+                                class="slds-m-bottom_small"
+                            ></lightning-input>
+                            <lightning-input
+                                label="法人会員"
+                                type="number"
+                                min="0"
+                                formatter="decimal"
+                                value={config.annualFeeCorporate}
+                                data-key="annualFeeCorporate"
+                                onchange={handleChange}
+                                placeholder="例: 50000"
+                                class="slds-m-bottom_small"
+                            ></lightning-input>
+                            <lightning-input
+                                label="学生会員"
+                                type="number"
+                                min="0"
+                                formatter="decimal"
+                                value={config.annualFeeStudent}
+                                data-key="annualFeeStudent"
+                                onchange={handleChange}
+                                placeholder="例: 3000"
+                                class="slds-m-bottom_small"
+                            ></lightning-input>
+                            <lightning-input
+                                label="賛助会員"
+                                type="number"
+                                min="0"
+                                formatter="decimal"
+                                value={config.annualFeeSupporting}
+                                data-key="annualFeeSupporting"
+                                onchange={handleChange}
+                                placeholder="例: 30000"
+                            ></lightning-input>
+                        </div>
+                    </div>
+
+                    <div class="setting-section">
+                        <h3 class="setting-section__title">機能の有効化</h3>
+                        <lightning-input
+                            type="checkbox"
+                            label="寄付機能を有効にする"
+                            checked={config.enableDonation}
+                            data-key="enableDonation"
+                            onchange={handleCheckChange}
+                            field-level-help="会員がポータルから寄付を行えるようにします。使用しない場合はチェックを外してください"
+                        ></lightning-input>
+                    </div>
+                </template>
+
+                <!-- ============================================================ -->
+                <!-- STEP 4: 認証設定（Okta）                                     -->
+                <!-- ============================================================ -->
+                <template if:true={isStepAuth}>
+                    <h2 class="step-title">
+                        <lightning-icon icon-name="utility:shield" size="small" class="slds-m-right_small"></lightning-icon>
+                        認証設定（Okta SSO）
+                    </h2>
+                    <p class="step-description">
+                        Okta を使ったシングルサインオン（SSO）ログインを設定します。
+                        Okta を使用しない場合は「スキップ」してください。
+                    </p>
+
+                    <lightning-input
+                        type="checkbox"
+                        label="Okta SSO を使用する"
+                        checked={config.useOkta}
+                        data-key="useOkta"
+                        onchange={handleUseOktaChange}
+                        field-level-help="Okta を ID プロバイダーとして使い、会員が Okta アカウントでポータルにログインできるようになります"
+                        class="slds-m-bottom_medium"
+                    ></lightning-input>
+
+                    <template if:true={config.useOkta}>
+                        <div class="setting-section">
+                            <div class="slds-form slds-form_stacked slds-m-bottom_medium">
+                                <lightning-input
+                                    label="Okta ドメイン URL"
+                                    type="url"
+                                    value={config.oktaDomain}
+                                    data-key="oktaDomain"
+                                    onchange={handleChange}
+                                    required
+                                    field-level-help="Okta 管理コンソールにログインした際のURL（例: https://your-company.okta.com）"
+                                    placeholder="https://your-company.okta.com"
+                                    class="slds-m-bottom_small"
+                                ></lightning-input>
+                                <lightning-input
+                                    label="Okta API トークン"
+                                    type="password"
+                                    data-key="oktaApiToken"
+                                    onchange={handleChange}
+                                    required
+                                    field-level-help="Okta 管理コンソール → Security → API → Tokens で発行できます（SSWS で始まる形式）"
+                                    placeholder="SSWS xxxxxxxxxxxx..."
+                                ></lightning-input>
+                            </div>
+
+                            <!-- Okta API Token 取得ガイド -->
+                            <div class="help-box slds-m-bottom_medium">
+                                <h4 class="slds-text-title_bold slds-m-bottom_x-small">
+                                    <lightning-icon icon-name="utility:question" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                                    Okta API トークンの取得方法
+                                </h4>
+                                <ol class="slds-list_ordered slds-p-left_large">
+                                    <li class="slds-item">Okta 管理コンソール（your-domain.okta.com/admin）にログイン</li>
+                                    <li class="slds-item">左メニューから「Security」→「API」を開く</li>
+                                    <li class="slds-item">「Tokens」タブをクリック</li>
+                                    <li class="slds-item">「Create Token」をクリックし、名前を入力して作成</li>
+                                    <li class="slds-item">表示されたトークン（<code>SSWS xxxx...</code>）をコピーして上の欄に貼り付ける</li>
+                                </ol>
+                            </div>
+
+                            <!-- Okta 残りの設定手順 -->
+                            <div class="slds-box slds-theme_shade">
+                                <h4 class="slds-text-heading_small slds-m-bottom_small">
+                                    <lightning-icon icon-name="utility:steps" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                                    Okta 設定の残りの手順（このウィザード外で行う作業）
+                                </h4>
+                                <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_small">
+                                    以下の手順はこのウィザードでは自動化できないため、手動での設定が必要です。
+                                    詳細は「完了」ステップで案内します。
+                                </p>
+                                <ol class="slds-list_ordered slds-p-left_large">
+                                    <li class="slds-item slds-m-bottom_x-small">
+                                        <strong>【Okta 側】</strong>
+                                        「OIDC Web Application」を新規作成し、
+                                        Sign-in redirect URI に
+                                        <code>https://あなたのSalesforceドメイン/services/auth/sso/okta</code>
+                                        を設定
+                                    </li>
+                                    <li class="slds-item slds-m-bottom_x-small">
+                                        <strong>【Salesforce 側】</strong>
+                                        Setup → ID → 認証プロバイダー → 新規 → OpenID Connect で Okta を登録
+                                    </li>
+                                    <li class="slds-item">
+                                        <strong>【Experience Cloud 側】</strong>
+                                        Setup → Experience Cloud サイト → [サイト名] → 管理 → ログインとアクセス で「Okta」を有効化
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+                    </template>
+                </template>
+
+                <!-- ============================================================ -->
+                <!-- STEP 5: 完了                                                  -->
+                <!-- ============================================================ -->
+                <template if:true={isStepComplete}>
+                    <div class="slds-text-align_center slds-m-bottom_large">
+                        <div class="slds-m-bottom_medium">
+                            <lightning-icon icon-name="action:approval" size="large"></lightning-icon>
+                        </div>
+                        <h2 class="slds-text-heading_large slds-m-bottom_small">ポータル設定が保存されました</h2>
+                        <p class="slds-text-body_regular slds-text-color_weak">
+                            基本設定・決済設定・年会費設定が完了しました。<br>
+                            引き続き、以下の手順を完了させてください。
+                        </p>
+                    </div>
+
+                    <!-- 保存済み設定 -->
+                    <div class="slds-box slds-theme_success slds-m-bottom_medium">
+                        <h3 class="slds-text-heading_small slds-m-bottom_small">
+                            <lightning-icon icon-name="utility:success" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                            このウィザードで自動設定されたもの
+                        </h3>
+                        <ul class="slds-list_dotted slds-p-left_medium">
+                            <li>基本設定（組織名・送信元メール・ポータル URL）</li>
+                            <template if:true={config.enableSlackNotification}>
+                                <li>Slack 通知設定</li>
+                            </template>
+                            <li>決済プロバイダー設定（{config.defaultPaymentProvider}）</li>
+                            <li>年会費設定</li>
+                            <template if:true={config.useOkta}>
+                                <li>Okta ドメイン・API トークン</li>
+                            </template>
+                        </ul>
+                    </div>
+
+                    <!-- スケジューラー有効化 -->
+                    <div class="setting-section slds-m-bottom_medium">
+                        <h3 class="setting-section__title">
+                            <lightning-icon icon-name="utility:clock" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                            定期支払いスケジューラー
+                        </h3>
+                        <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_small">
+                            定期支払いプランを自動生成するスケジューラーです（毎日 01:00 実行）。今すぐ有効化できます。
+                        </p>
+                        <div class="slds-grid slds-grid_vertical-align-center">
+                            <lightning-button
+                                label={schedulerButtonLabel}
+                                variant="neutral"
+                                onclick={handleEnableScheduler}
+                                disabled={schedulerEnabled}
+                                class="slds-m-right_small"
+                            ></lightning-button>
+                            <template if:true={schedulerEnabled}>
+                                <span class="slds-badge slds-badge_success">
+                                    <lightning-icon icon-name="utility:success" size="xx-small" class="slds-m-right_xx-small"></lightning-icon>
+                                    有効
+                                </span>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- 残作業ガイド -->
+                    <h3 class="slds-text-heading_medium slds-m-bottom_medium">
+                        <lightning-icon icon-name="utility:list" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                        引き続き必要な手動設定
+                    </h3>
+
+                    <lightning-accordion allow-multiple-sections-open class="remaining-tasks">
+
+                        <!-- Named Credentials -->
+                        <lightning-accordion-section name="namedcred" label="1. Named Credentials（API 認証情報）の登録">
+                            <div class="task-content">
+                                <p class="slds-text-body_small slds-m-bottom_medium">
+                                    <strong>Named Credentials</strong> とは、Salesforce から外部 API に接続する際の認証情報を安全に保管する場所です。<br>
+                                    <strong>Setup → セキュリティ → Named Credentials</strong> を開き、以下の設定を行ってください。
+                                </p>
+
+                                <div class="namedcred-item slds-m-bottom_medium">
+                                    <h4 class="slds-text-heading_small slds-m-bottom_x-small">PayjpAPI（Pay.jp を使用する場合）</h4>
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_col-bordered">
+                                        <tbody>
+                                            <tr><th class="slds-size_3-of-12">URL</th><td><code>https://api.pay.jp/v1</code></td></tr>
+                                            <tr><th>認証プロトコル</th><td>カスタムヘッダー</td></tr>
+                                            <tr><th>ヘッダー名</th><td><code>Authorization</code></td></tr>
+                                            <tr><th>ヘッダー値</th><td><code>Basic &lt;シークレットキーを Base64 エンコード&gt;</code><br><span class="slds-text-body_small slds-text-color_weak">（シークレットキーの後ろにコロン「:」を付けて Base64 エンコードした値）</span></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="namedcred-item slds-m-bottom_medium">
+                                    <h4 class="slds-text-heading_small slds-m-bottom_x-small">OmiseAPI（Omise を使用する場合）</h4>
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_col-bordered">
+                                        <tbody>
+                                            <tr><th class="slds-size_3-of-12">URL</th><td><code>https://api.omise.co</code></td></tr>
+                                            <tr><th>認証プロトコル</th><td>パスワード認証（Basic）</td></tr>
+                                            <tr><th>ユーザー名</th><td>Omise シークレットキー（<code>skey_...</code>）</td></tr>
+                                            <tr><th>パスワード</th><td>（空欄のまま）</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="namedcred-item slds-m-bottom_medium">
+                                    <h4 class="slds-text-heading_small slds-m-bottom_x-small">StripeAPI（Stripe を使用する場合）</h4>
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_col-bordered">
+                                        <tbody>
+                                            <tr><th class="slds-size_3-of-12">URL</th><td><code>https://api.stripe.com</code></td></tr>
+                                            <tr><th>認証プロトコル</th><td>カスタムヘッダー</td></tr>
+                                            <tr><th>ヘッダー名</th><td><code>Authorization</code></td></tr>
+                                            <tr><th>ヘッダー値</th><td><code>Bearer sk_live_...</code>（または <code>sk_test_...</code>）</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="namedcred-item slds-m-bottom_medium">
+                                    <h4 class="slds-text-heading_small slds-m-bottom_x-small">SlackAPI（Slack 通知を使用する場合）</h4>
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_col-bordered">
+                                        <tbody>
+                                            <tr><th class="slds-size_3-of-12">URL</th><td><code>https://slack.com/api</code></td></tr>
+                                            <tr><th>認証プロトコル</th><td>カスタムヘッダー</td></tr>
+                                            <tr><th>ヘッダー名</th><td><code>Authorization</code></td></tr>
+                                            <tr><th>ヘッダー値</th><td><code>Bearer xoxb-...</code>（Bot Token）</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="namedcred-item">
+                                    <h4 class="slds-text-heading_small slds-m-bottom_x-small">OktaAPI（Okta SSO を使用する場合）</h4>
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_col-bordered">
+                                        <tbody>
+                                            <tr><th class="slds-size_3-of-12">URL</th><td><code>https://あなたのOktaドメイン.okta.com</code></td></tr>
+                                            <tr><th>認証プロトコル</th><td>カスタムヘッダー</td></tr>
+                                            <tr><th>ヘッダー名</th><td><code>Authorization</code></td></tr>
+                                            <tr><th>ヘッダー値</th><td><code>SSWS [Okta API トークン]</code></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </lightning-accordion-section>
+
+                        <!-- Experience Cloud -->
+                        <lightning-accordion-section name="expcloud" label="2. Experience Cloud サイトの公開とページ設定">
+                            <div class="task-content">
+                                <h4 class="slds-text-heading_small slds-m-bottom_small">サイトの公開</h4>
+                                <ol class="slds-list_ordered slds-p-left_large slds-m-bottom_medium">
+                                    <li class="slds-item slds-m-bottom_x-small">
+                                        Salesforce Setup の検索ボックスで「デジタルエクスペリエンス」と入力し、
+                                        <strong>「デジタルエクスペリエンス → すべてのサイト」</strong>を開く
+                                    </li>
+                                    <li class="slds-item slds-m-bottom_x-small">会員ポータルサイトの「<strong>公開</strong>」ボタンをクリック</li>
+                                    <li class="slds-item">サイト URL を記録しておく（ポータル URL の設定に使用）</li>
+                                </ol>
+
+                                <h4 class="slds-text-heading_small slds-m-bottom_small">ページへのコンポーネント配置</h4>
+                                <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_small">
+                                    サイトビルダーを開き（「サイトビルダー」ボタン）、各ページにコンポーネントをドラッグ＆ドロップで配置してください。
+                                </p>
+                                <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_col-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>ページ</th>
+                                            <th>配置するコンポーネント</th>
+                                            <th>説明</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td>ログインページ</td><td><code>portalLogin</code></td><td>Okta ボタン・メールリンク認証</td></tr>
+                                        <tr><td>ホーム</td><td><code>memberPortalDashboard</code></td><td>ダッシュボード</td></tr>
+                                        <tr><td>マイページ</td><td><code>memberMyPage</code></td><td>支払い履歴・プラン確認</td></tr>
+                                        <tr><td>支払いフォーム</td><td><code>paymentForm</code></td><td>決済処理</td></tr>
+                                        <tr><td>会員登録</td><td><code>memberRegistrationForm</code></td><td>新規会員登録</td></tr>
+                                        <tr><td>サポート問い合わせ</td><td><code>supportInquiryForm</code></td><td>問い合わせフォーム</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </lightning-accordion-section>
+
+                        <!-- 権限セット -->
+                        <lightning-accordion-section name="permset" label="3. 権限セットの割り当て">
+                            <div class="task-content">
+                                <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_medium">
+                                    <strong>権限セット</strong>とは、ユーザーに付与する操作権限のまとまりです。
+                                    管理者と会員でそれぞれ異なる権限セットを割り当てます。
+                                </p>
+                                <h4 class="slds-text-heading_small slds-m-bottom_small">手順</h4>
+                                <ol class="slds-list_ordered slds-p-left_large slds-m-bottom_medium">
+                                    <li class="slds-item slds-m-bottom_x-small">Setup の検索ボックスで「権限セット」と入力し、「権限セット」を開く</li>
+                                    <li class="slds-item slds-m-bottom_x-small">
+                                        「<strong>MemberPortalAdmin</strong>」をクリック →「割り当てを管理」→
+                                        ポータル管理者として設定するユーザーを追加
+                                    </li>
+                                    <li class="slds-item">
+                                        「<strong>MemberPortalUser</strong>」をクリック →「割り当てを管理」→
+                                        会員ユーザー全員を追加
+                                    </li>
+                                </ol>
+                                <div class="slds-notify slds-notify_alert slds-theme_info" role="status">
+                                    <lightning-icon icon-name="utility:info" size="x-small" class="slds-m-right_x-small" variant="inverse"></lightning-icon>
+                                    <span class="slds-assistive-text">情報</span>
+                                    MemberPortalAdmin を持つユーザーのみが「ポータル設定（管理者）」タブを表示・編集できます。
+                                    Experience Cloud サイトには公開しないようご注意ください。
+                                </div>
+                            </div>
+                        </lightning-accordion-section>
+
+                        <!-- Okta 残り手順（Okta 使用時のみ） -->
+                        <template if:true={config.useOkta}>
+                            <lightning-accordion-section name="okta" label="4. Okta SSO の残り設定">
+                                <div class="task-content">
+                                    <div class="okta-step slds-m-bottom_medium">
+                                        <h4 class="slds-text-heading_small slds-m-bottom_small">
+                                            手順 1: Okta 側の設定
+                                        </h4>
+                                        <ol class="slds-list_ordered slds-p-left_large">
+                                            <li class="slds-item slds-m-bottom_x-small">
+                                                Okta 管理コンソール → Applications →「Create App Integration」
+                                            </li>
+                                            <li class="slds-item slds-m-bottom_x-small">
+                                                「<strong>OIDC - OpenID Connect</strong>」→「Web Application」を選択
+                                            </li>
+                                            <li class="slds-item slds-m-bottom_x-small">
+                                                <strong>Sign-in redirect URIs</strong> に以下を入力:<br>
+                                                <code>https://あなたのSalesforceドメイン/services/auth/sso/okta</code>
+                                            </li>
+                                            <li class="slds-item">作成後に表示される <strong>Client ID</strong> と <strong>Client Secret</strong> を控える</li>
+                                        </ol>
+                                    </div>
+                                    <div class="okta-step slds-m-bottom_medium">
+                                        <h4 class="slds-text-heading_small slds-m-bottom_small">
+                                            手順 2: Salesforce 認証プロバイダーの登録
+                                        </h4>
+                                        <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_x-small">
+                                            Setup → ID → 認証プロバイダー → 新規 → OpenID Connect で以下を設定:
+                                        </p>
+                                        <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_col-bordered">
+                                            <tbody>
+                                                <tr><th class="slds-size_4-of-12">URL サフィックス</th><td><code>okta</code>（固定）</td></tr>
+                                                <tr><th>コンシューマーキー</th><td>Okta の Client ID</td></tr>
+                                                <tr><th>コンシューマーシークレット</th><td>Okta の Client Secret</td></tr>
+                                                <tr><th>承認エンドポイント</th><td><code>https://[okta-domain]/oauth2/default/v1/authorize</code></td></tr>
+                                                <tr><th>トークンエンドポイント</th><td><code>https://[okta-domain]/oauth2/default/v1/token</code></td></tr>
+                                                <tr><th>ユーザー情報エンドポイント</th><td><code>https://[okta-domain]/oauth2/default/v1/userinfo</code></td></tr>
+                                                <tr><th>デフォルトスコープ</th><td><code>openid profile email</code></td></tr>
+                                                <tr><th>登録ハンドラー</th><td><code>OktaOidcRegistrationHandler</code>（固定）</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="okta-step">
+                                        <h4 class="slds-text-heading_small slds-m-bottom_small">
+                                            手順 3: Experience Cloud でログインプロバイダーを有効化
+                                        </h4>
+                                        <ol class="slds-list_ordered slds-p-left_large">
+                                            <li class="slds-item slds-m-bottom_x-small">Setup → デジタルエクスペリエンス → すべてのサイト → [サイト名] → 「管理」</li>
+                                            <li class="slds-item slds-m-bottom_x-small">「ログインとアクセス」タブを開く</li>
+                                            <li class="slds-item">認証プロバイダーの一覧で「Okta」を有効にする</li>
+                                        </ol>
+                                    </div>
+                                </div>
+                            </lightning-accordion-section>
+                        </template>
+
+                    </lightning-accordion>
+
+                    <div class="slds-m-top_large slds-text-align_center">
+                        <lightning-button
+                            variant="brand"
+                            label="ポータル設定（管理者）を開く"
+                            onclick={handleOpenPortalConfig}
+                        ></lightning-button>
+                    </div>
+                </template>
+
+            </div>
+
+            <!-- フッターナビゲーション -->
+            <template if:false={isStepComplete}>
+                <div slot="footer">
+                    <div class="slds-grid slds-grid_align-spread">
+                        <lightning-button
+                            label="戻る"
+                            onclick={handlePrevious}
+                            disabled={isFirstStep}
+                        ></lightning-button>
+                        <div>
+                            <template if:true={isStepAuth}>
+                                <lightning-button
+                                    label="スキップ"
+                                    onclick={handleSkipStep}
+                                    class="slds-m-right_small"
+                                ></lightning-button>
+                            </template>
+                            <lightning-button
+                                variant="brand"
+                                label={nextButtonLabel}
+                                onclick={handleNext}
+                                disabled={isLoading}
+                            ></lightning-button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+        </lightning-card>
+    </div>
+</template>
