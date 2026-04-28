@@ -1,0 +1,51 @@
+name: Sandbox ErrorId Summary
+
+on:
+  schedule:
+    # 毎週月曜 03:00 JST (日曜 18:00 UTC)
+    - cron: '0 18 * * 0'
+  workflow_dispatch:
+    inputs:
+      since_days:
+        description: '集計対象日数'
+        required: true
+        default: '14'
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  summarize-errorids:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect ErrorIds from sandbox artifacts
+        id: collect
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          chmod +x scripts/collect_sandbox_error_ids.sh
+          SINCE_DAYS="${{ github.event.inputs.since_days || '14' }}"
+          OUT_DIR="$(scripts/collect_sandbox_error_ids.sh "$SINCE_DAYS")"
+          echo "out_dir=$OUT_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Publish summary to job summary
+        if: always()
+        run: |
+          if [ -f "${{ steps.collect.outputs.out_dir }}/sandbox-errorid-summary.md" ]; then
+            cat "${{ steps.collect.outputs.out_dir }}/sandbox-errorid-summary.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No summary file generated." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload summary artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-errorid-summary-${{ github.run_number }}
+          path: ${{ steps.collect.outputs.out_dir }}/
+          retention-days: 30
+          if-no-files-found: warn
