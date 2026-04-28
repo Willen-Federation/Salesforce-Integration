@@ -2,7 +2,7 @@ name: Deploy to Sandbox
 
 on:
   push:
-    branches: [main]
+    branches: [staging]
     paths:
       - 'force-app/**'
       - 'sfdx-project.json'
