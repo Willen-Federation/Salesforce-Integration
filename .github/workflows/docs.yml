@@ -2,14 +2,14 @@ name: Documentation
 
 on:
   push:
-    branches: [main]
+    branches: [staging]
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
       - 'requirements-docs.txt'
 
   pull_request:
-    branches: [main]
+    branches: [staging]
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
@@ -60,7 +60,7 @@ jobs:
     name: Deploy to GitHub Pages
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/staging'
 
     steps:
       - uses: actions/checkout@v4
