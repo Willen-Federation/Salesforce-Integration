@@ -28,7 +28,7 @@ describe('c-portal-setup-wizard', () => {
 
     // 非同期処理（Apex呼び出しなど）の完了を待つためのヘルパー関数
     async function flushPromises() {
-        return new Promise(resolve => setImmediate(resolve));
+        return new Promise(resolve => setTimeout(resolve, 0));
     }
 
     it('初期表示時に "welcome" ステップが表示されること', async () => {
@@ -44,8 +44,9 @@ describe('c-portal-setup-wizard', () => {
         document.body.appendChild(element);
         await flushPromises(); // connectedCallback内の非同期処理を待つ
 
-        // 検証: コンポーネントの公開プロパティ/ゲッターで現在のステップを確認
-        expect(element.currentStep).toBe('welcome');
+        // 検証: 進捗コンポーネントの currentStep が welcome であることを確認
+        const progress = element.shadowRoot.querySelector('lightning-progress-indicator');
+        expect(progress.currentStep).toBe('welcome');
     });
 
     it('「次へ」ボタンクリックで "basic" ステップに遷移すること', async () => {
@@ -63,11 +64,14 @@ describe('c-portal-setup-wizard', () => {
         element.validateCurrentStep = jest.fn(() => true);
 
         // 実行: 「次へ」ボタンを探してクリック
-        const nextButton = element.shadowRoot.querySelector('lightning-button[label="次へ"]');
+        const nextButton = [...element.shadowRoot.querySelectorAll('lightning-button')]
+            .find(button => button.label === '次へ');
+        expect(nextButton).toBeTruthy();
         nextButton.click();
         await flushPromises(); // 状態変更と再描画を待つ
 
-        // 検証: ステップが 'basic' に変わったことを確認
-        expect(element.currentStep).toBe('basic');
+        // 検証: 進捗コンポーネントの currentStep が basic に変わったことを確認
+        const progress = element.shadowRoot.querySelector('lightning-progress-indicator');
+        expect(progress.currentStep).toBe('basic');
     });
 });
