@@ -71,6 +71,26 @@ jobs:
           echo "Deploying with test level: $TEST_LEVEL"
           echo "UNKNOWN_EXCEPTION outcome mode: $UNKNOWN_OUTCOME"
 
+          is_unknown_exception() {
+            local log_file="$1"
+            if grep -q "UNKNOWN_EXCEPTION" "$log_file" 2>/dev/null; then
+              return 0
+            fi
+            if [ -f deploy-report.json ]; then
+              if grep -q "UNKNOWN_EXCEPTION" deploy-report.json; then
+                return 0
+              fi
+              if command -v jq >/dev/null 2>&1; then
+                local status_code
+                status_code="$(jq -r '.result.errorStatusCode // empty' deploy-report.json 2>/dev/null || true)"
+                if [ "$status_code" = "UNKNOWN_EXCEPTION" ]; then
+                  return 0
+                fi
+              fi
+            fi
+            return 1
+          }
+
           run_with_retry() {
             local STEP_NAME="$1"
             local LOG_FILE="$2"
@@ -97,16 +117,23 @@ jobs:
                   --json > deploy-report.json || true
               fi
 
-              if { grep -q "UNKNOWN_EXCEPTION" "$LOG_FILE" || { [ -f deploy-report.json ] && grep -q "UNKNOWN_EXCEPTION" deploy-report.json; }; } && [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
+              if is_unknown_exception "$LOG_FILE" && [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
                 local SLEEP_SECONDS=$((ATTEMPT * 60))
                 echo "Transient Salesforce UNKNOWN_EXCEPTION detected in ${STEP_NAME}. Retrying in ${SLEEP_SECONDS}s..."
                 sleep "$SLEEP_SECONDS"
                 ATTEMPT=$((ATTEMPT + 1))
                 continue
               fi
-              if { grep -q "UNKNOWN_EXCEPTION" "$LOG_FILE" || { [ -f deploy-report.json ] && grep -q "UNKNOWN_EXCEPTION" deploy-report.json; }; } && [ "$STEP_NAME" = "Deploy" ] && [ "$TEST_LEVEL" = "RunAllTestsInOrg" ]; then
+              if is_unknown_exception "$LOG_FILE" && [ "$STEP_NAME" = "Deploy" ] && [ "$TEST_LEVEL" = "RunAllTestsInOrg" ]; then
+                local ERROR_ID
+                ERROR_ID="$(grep -Eo '[0-9]+-[0-9]+ \(-?[0-9]+\)' "$LOG_FILE" deploy-report.json 2>/dev/null | head -n1 || true)"
                 echo "::warning::[SF_UNKNOWN_EXCEPTION] Persistent Salesforce UNKNOWN_EXCEPTION detected after retries in sandbox Deploy."
                 touch deploy-unknown-exception.flag
+                {
+                  echo "step=${STEP_NAME}"
+                  echo "deploy_id=${DEPLOY_ID:-}"
+                  echo "error_id=${ERROR_ID:-}"
+                } > deploy-unknown-exception.meta
                 return 0
               fi
               if [ -n "$DEPLOY_ID" ]; then
@@ -145,7 +172,7 @@ jobs:
               --verbose
 
       - name: Show recent deploy report on failure
-        if: failure()
+        if: failure() || hashFiles('deploy-unknown-exception.flag') != ''
         run: |
           DEPLOY_ID="$(grep -Eo 'Deploy ID: [A-Za-z0-9]+' deploy-start.log validate.log 2>/dev/null | tail -n1 | awk '{print $3}')"
           if [ -n "$DEPLOY_ID" ]; then
@@ -169,12 +196,16 @@ jobs:
         if: always()
         run: |
           if [ -f deploy-unknown-exception.flag ]; then
+            ERROR_ID="$(grep -E '^error_id=' deploy-unknown-exception.meta 2>/dev/null | sed -e 's/^error_id=//' || true)"
+            DEPLOY_ID="$(grep -E '^deploy_id=' deploy-unknown-exception.meta 2>/dev/null | sed -e 's/^deploy_id=//' || true)"
             {
               echo "## ⚠️ Sandbox Deploy Notice [SF_UNKNOWN_EXCEPTION]"
               echo ""
               echo "Salesforce returned persistent \`UNKNOWN_EXCEPTION\` after retries."
               echo "Outcome mode: \`${{ github.event.inputs.unknown_exception_outcome || 'failure' }}\`"
               echo "Label: \`SF_UNKNOWN_EXCEPTION\`"
+              echo "Deploy ID: \`${DEPLOY_ID:-N/A}\`"
+              echo "ErrorId: \`${ERROR_ID:-N/A}\`"
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
@@ -197,6 +228,9 @@ jobs:
           fi
           if [ -f deploy-unknown-exception.flag ]; then
             cp deploy-unknown-exception.flag deploy-artifacts/
+          fi
+          if [ -f deploy-unknown-exception.meta ]; then
+            cp deploy-unknown-exception.meta deploy-artifacts/
           fi
           if [ -d "$HOME/.sf" ]; then
             cp -r "$HOME/.sf" deploy-artifacts/sf-home
@@ -225,8 +259,8 @@ jobs:
 
           echo "::warning::[SF_UNKNOWN_EXCEPTION] Persistent platform-side UNKNOWN_EXCEPTION was detected."
           if [ "$UNKNOWN_EXCEPTION_OUTCOME" = "neutral" ]; then
-            echo "::warning::[SF_UNKNOWN_EXCEPTION] Marking job as neutral (exit 78)."
-            exit 78
+            echo "::notice::[SF_UNKNOWN_EXCEPTION] Marking job as neutral policy (job remains successful with labeled warning)."
+            exit 0
           fi
 
           echo "::error::[SF_UNKNOWN_EXCEPTION] Marking job as failure by policy."
