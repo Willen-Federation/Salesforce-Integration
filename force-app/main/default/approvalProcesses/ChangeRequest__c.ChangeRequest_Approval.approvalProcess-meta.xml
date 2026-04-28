@@ -22,10 +22,8 @@
         </approvalActions>
         <assignedApprover>
             <approver>
-                <name>Manager</name>
-                <type>userHierarchyField</type>
+                <type>owner</type>
             </approver>
-            <whenMultipleApprovers>FirstResponse</whenMultipleApprovers>
         </assignedApprover>
         <label>管理者承認</label>
         <name>ChangeRequest_Step1</name>
@@ -71,10 +69,6 @@
     </initialSubmissionActions>
     <label>変更申請承認プロセス</label>
     <name>ChangeRequest_Approval</name>
-    <nextAutomatedApprover>
-        <useApproverFieldOfRecordOwner>false</useApproverFieldOfRecordOwner>
-        <userHierarchyField>Manager</userHierarchyField>
-    </nextAutomatedApprover>
     <recordEditability>AdminOrCurrentApprover</recordEditability>
     <showApprovalHistory>true</showApprovalHistory>
 </ApprovalProcess>
