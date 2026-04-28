@@ -1,0 +1,13 @@
+{
+  "name": "salesforce-integration-lwc-tests",
+  "private": true,
+  "version": "1.0.0",
+  "description": "LWC unit tests using Jest",
+  "scripts": {
+    "test:unit": "sfdx-lwc-jest",
+    "test:unit:watch": "sfdx-lwc-jest --watch"
+  },
+  "devDependencies": {
+    "@salesforce/sfdx-lwc-jest": "^7.1.2"
+  }
+}
