@@ -19,6 +19,14 @@ on:
           - RunLocalTests
           - RunAllTestsInOrg
           - NoTestRun
+      unknown_exception_outcome:
+        description: 'RunAllTestsInOrg + UNKNOWN_EXCEPTION時の最終判定'
+        required: true
+        default: 'failure'
+        type: choice
+        options:
+          - failure
+          - neutral
 
 jobs:
   deploy-sandbox:
@@ -54,10 +62,14 @@ jobs:
           rm /tmp/server.key
 
       - name: Deploy to Sandbox
+        env:
+          UNKNOWN_EXCEPTION_OUTCOME: ${{ github.event.inputs.unknown_exception_outcome || 'failure' }}
         run: |
           TEST_LEVEL="${{ github.event.inputs.test_level || 'RunLocalTests' }}"
           API_VERSION="59.0"
+          UNKNOWN_OUTCOME="${UNKNOWN_EXCEPTION_OUTCOME}"
           echo "Deploying with test level: $TEST_LEVEL"
+          echo "UNKNOWN_EXCEPTION outcome mode: $UNKNOWN_OUTCOME"
 
           run_with_retry() {
             local STEP_NAME="$1"
@@ -93,7 +105,7 @@ jobs:
                 continue
               fi
               if { grep -q "UNKNOWN_EXCEPTION" "$LOG_FILE" || { [ -f deploy-report.json ] && grep -q "UNKNOWN_EXCEPTION" deploy-report.json; }; } && [ "$STEP_NAME" = "Deploy" ] && [ "$TEST_LEVEL" = "RunAllTestsInOrg" ]; then
-                echo "::warning::Persistent Salesforce UNKNOWN_EXCEPTION detected after retries in sandbox Deploy. Treating as transient platform failure and continuing."
+                echo "::warning::[SF_UNKNOWN_EXCEPTION] Persistent Salesforce UNKNOWN_EXCEPTION detected after retries in sandbox Deploy."
                 touch deploy-unknown-exception.flag
                 return 0
               fi
@@ -158,15 +170,16 @@ jobs:
         run: |
           if [ -f deploy-unknown-exception.flag ]; then
             {
-              echo "## ⚠️ Sandbox Deploy Notice"
+              echo "## ⚠️ Sandbox Deploy Notice [SF_UNKNOWN_EXCEPTION]"
               echo ""
               echo "Salesforce returned persistent \`UNKNOWN_EXCEPTION\` after retries."
-              echo "Workflow continued to avoid blocking due to platform-side transient failure."
+              echo "Outcome mode: \`${{ github.event.inputs.unknown_exception_outcome || 'failure' }}\`"
+              echo "Label: \`SF_UNKNOWN_EXCEPTION\`"
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Notify success
-        if: success()
+        if: success() && !hashFiles('deploy-unknown-exception.flag')
         run: |
           echo "✅ Sandbox deployment succeeded at $(date '+%Y-%m-%d %H:%M:%S UTC')"
           echo "Branch: ${{ github.ref_name }}"
@@ -200,3 +213,21 @@ jobs:
           path: deploy-artifacts/
           retention-days: 14
           if-no-files-found: warn
+
+      - name: Finalize UNKNOWN_EXCEPTION outcome
+        if: always()
+        env:
+          UNKNOWN_EXCEPTION_OUTCOME: ${{ github.event.inputs.unknown_exception_outcome || 'failure' }}
+        run: |
+          if [ ! -f deploy-unknown-exception.flag ]; then
+            exit 0
+          fi
+
+          echo "::warning::[SF_UNKNOWN_EXCEPTION] Persistent platform-side UNKNOWN_EXCEPTION was detected."
+          if [ "$UNKNOWN_EXCEPTION_OUTCOME" = "neutral" ]; then
+            echo "::warning::[SF_UNKNOWN_EXCEPTION] Marking job as neutral (exit 78)."
+            exit 78
+          fi
+
+          echo "::error::[SF_UNKNOWN_EXCEPTION] Marking job as failure by policy."
+          exit 1
