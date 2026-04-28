@@ -96,8 +96,7 @@ jobs:
                 echo "${STEP_NAME} failed. Showing deploy report for ${DEPLOY_ID}:"
                 sf project deploy report \
                   --job-id "$DEPLOY_ID" \
-                  --target-org sandbox \
-                  --verbose || true
+                  --target-org sandbox || true
               fi
               echo "${STEP_NAME} failed with non-retriable error or max attempts reached."
               return "$EXIT_CODE"
@@ -135,8 +134,7 @@ jobs:
           if [ -n "$DEPLOY_ID" ]; then
             sf project deploy report \
               --job-id "$DEPLOY_ID" \
-              --target-org sandbox \
-              --verbose || true
+              --target-org sandbox || true
             sf project deploy report \
               --job-id "$DEPLOY_ID" \
               --target-org sandbox \
