@@ -2,19 +2,11 @@
   "packageDirectories": [
     {
       "path": "force-app",
-      "default": true,
-      "package": "MemberPortal",
-      "versionName": "ver 1.0",
-      "versionNumber": "1.0.0.NEXT"
+      "default": true
     }
   ],
-  "name": "MemberPortal",
+  "name": "Salesforce-Integration",
   "namespace": "",
   "sfdcLoginUrl": "https://login.salesforce.com",
-  "sourceApiVersion": "59.0",
-  "plugins": {
-    "salesforcedx-vscode-core": {
-      "detectConflictsAtSync": false
-    }
-  }
+  "sourceApiVersion": "59.0"
 }
